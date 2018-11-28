@@ -1,0 +1,104 @@
+PUT /my_index/groups/1
+	{
+	    "names": [ "John Abraham", "Lincoln Smith"]
+	}
+查看分词：
+POST	/my_index/_analyze
+	{
+		"field": "names",
+		"text": [ "John Abraham", "Lincoln Smith"]
+	}
+输出：
+	{
+	    "tokens": [
+	        {
+	            "token": "john",
+	            "start_offset": 0,
+	            "end_offset": 4,
+	            "type": "<ALPHANUM>",
+	            "position": 0
+	        },
+	        {
+	            "token": "abraham",
+	            "start_offset": 5,
+	            "end_offset": 12,
+	            "type": "<ALPHANUM>",
+	            "position": 1
+	        },
+	        {
+	            "token": "lincoln",
+	            "start_offset": 13,
+	            "end_offset": 20,
+	            "type": "<ALPHANUM>",
+	            "position": 102
+	        },
+	        {
+	            "token": "smith",
+	            "start_offset": 21,
+	            "end_offset": 26,
+	            "type": "<ALPHANUM>",
+	            "position": 103
+	        }
+	    ]
+	}
+
+PUT /my_index
+	{
+	    "mappings": {
+	        "groups": {
+	            "properties": {
+	                "names": {
+	                    "type":     "text",
+	                    "position_increment_gap": 200
+	                }
+	            }
+	        }
+	    }
+	}
+position_increment_gap 设置告诉 Elasticsearch 应该为数组中每个新元素增加当前词条 position 的指定值。 所以现在当我们再索引 names 数组时，会产生
+如下的结果：
+	{
+	    "tokens": [
+	        {
+	            "token": "john",
+	            "start_offset": 0,
+	            "end_offset": 4,
+	            "type": "<ALPHANUM>",
+	            "position": 0
+	        },
+	        {
+	            "token": "abraham",
+	            "start_offset": 5,
+	            "end_offset": 12,
+	            "type": "<ALPHANUM>",
+	            "position": 1
+	        },
+	        {
+	            "token": "lincoln",
+	            "start_offset": 13,
+	            "end_offset": 20,
+	            "type": "<ALPHANUM>",
+	            "position": 202
+	        },
+	        {
+	            "token": "smith",
+	            "start_offset": 21,
+	            "end_offset": 26,
+	            "type": "<ALPHANUM>",
+	            "position": 203
+	        }
+	    ]
+	}
+
+所以查询需要跨200：
+POST	/my_index/groups/_search
+	{
+	    "query": {
+	        "match_phrase": {
+	            "names": {
+	            	"query": "Abraham Lincoln",
+	                "slop":  200
+	            }
+	        }
+	    }
+	}

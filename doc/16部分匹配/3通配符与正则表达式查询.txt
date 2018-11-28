@@ -1,0 +1,30 @@
+wildcard 通配符查询：
+这个查询会匹配包含 W1F 7HW 和 W2F 8HW 的文档：
+GET /my_index/address/_search
+{
+    "query": {
+        "wildcard": {
+            "postcode": "W?F*HW"
+        }
+    }
+}
+regexp 正则查询：
+{
+    "query": {
+        "regexp": {
+            "postcode": "W[0-9].+"
+        }
+    }
+}
+这个正则表达式要求词必须以 W 开头，紧跟 0 至 9 之间的任何一个数字，然后接一或多个其他字符。
+这也意味着需要同样注意前缀查询存在性能问题，对有很多唯一词的字段执行这些查询可能会消耗非常多的资源，所以要避免使用左通配这样的模式匹配
+（如： *foo 或 .*foo 这样的正则式）。
+
+prefix 、 wildcard 和 regexp 查询是基于词操作的，如果用它们来查询 analyzed 字段，它们会检查字段里面的每个词，而不是将字段作为整体
+来处理。
+比方说包含 “Quick brown fox” （快速的棕色狐狸）的 title 字段会生成词： quick 、 brown 和 fox 。
+会匹配以下这个查询：
+{ "regexp": { "title": "br.*" }}
+但是不会匹配以下两个查询：
+{ "regexp": { "title": "Qu.*" }} 	在索引里的词是 quick 而不是 Quick 。
+{ "regexp": { "title": "quick br*" }} 	quick 和 brown 在词表中是分开的。

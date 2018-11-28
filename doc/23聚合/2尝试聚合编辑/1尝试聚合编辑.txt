@@ -1,0 +1,53 @@
+首先我们批量索引一些数据：
+	POST /cars/transactions/_bulk
+	{ "index": {}}
+	{ "price" : 10000, "color" : "red", "make" : "honda", "sold" : "2014-10-28" }
+	{ "index": {}}
+	{ "price" : 20000, "color" : "red", "make" : "honda", "sold" : "2014-11-05" }
+	{ "index": {}}
+	{ "price" : 30000, "color" : "green", "make" : "ford", "sold" : "2014-05-18" }
+	{ "index": {}}
+	{ "price" : 15000, "color" : "blue", "make" : "toyota", "sold" : "2014-07-02" }
+	{ "index": {}}
+	{ "price" : 12000, "color" : "green", "make" : "toyota", "sold" : "2014-08-19" }
+	{ "index": {}}
+	{ "price" : 20000, "color" : "red", "make" : "honda", "sold" : "2014-11-05" }
+	{ "index": {}}
+	{ "price" : 80000, "color" : "red", "make" : "bmw", "sold" : "2014-01-01" }
+	{ "index": {}}
+	{ "price" : 25000, "color" : "blue", "make" : "ford", "sold" : "2014-02-12" }
+
+GET /cars/transactions/_search
+{
+    "size" : 0, 可能会注意到我们将 size 设置成 0 。我们并不关心搜索结果的具体内容，所以将返回记录数设置为 0 来提高查询速度。
+    "aggs" : { 聚合操作被置于顶层参数 aggs 之下（如果你愿意，完整形式 aggregations 同样有效）。
+        "popular_colors" : { 然后，可以为聚合指定一个我们想要名称，本例中是： popular_colors 。
+            "terms" : { 最后，定义单个桶的类型 terms 。
+              "field" : "color"
+            }
+        }
+    }
+}
+
+结果：
+	"hits": {
+      "hits": [] 因为我们设置了 size 参数，所以不会有 hits 搜索结果返回。
+   },
+   "aggregations": {
+      "popular_colors": {	popular_colors 聚合是作为 aggregations 字段的一部分被返回的。
+         "buckets": [
+            {
+               "key": "red",每个桶的key都与color字段里找到的唯一词对应。它总会包含doc_count字段，告诉我们包含该词项的文档数量。
+               "doc_count": 4	每个桶的数量代表该颜色的文档数量。
+            },
+            {
+               "key": "blue",
+               "doc_count": 2
+            },
+            {
+               "key": "green",
+               "doc_count": 2
+            }
+         ]
+      }
+   }

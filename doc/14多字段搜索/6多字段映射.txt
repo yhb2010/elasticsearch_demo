@@ -1,0 +1,82 @@
+PUT /my_index
+{
+    "settings": { "number_of_shards": 1 },
+    "mappings": {
+        "my_type": {
+            "properties": {
+                "title": {
+                    "type":     "string",
+                    "analyzer": "english",
+                    "fields": {
+                        "std":   {
+                            "type":     "string",
+                            "analyzer": "standard"
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+title 字段使用 english 英语分析器来提取词干。
+title.std 字段使用 standard 标准分析器，所以没有词干提取。
+
+接着索引一些文档：
+PUT /my_index/my_type/1
+{ "title": "My rabbit jumps" }
+PUT /my_index/my_type/2
+{ "title": "Jumping jack rabbits" }
+
+这里用一个简单 match 查询 title 标题字段是否包含 jumping rabbits （跳跃的兔子）：
+GET /my_index/_search
+{
+   "query": {
+        "match": {
+            "title": "jumping rabbits"
+        }
+    }
+}
+因为有了 english 分析器，这个查询是在查找以 jump 和 rabbit 这两个被提取词的文档。两个文档的 title 字段都同时包括这两个词，所以两个文档得到的评分也相同：
+{
+  "hits": [
+     {
+        "_id": "1",
+        "_score": 0.42039964,
+        "_source": {
+           "title": "My rabbit jumps"
+        }
+     },
+     {
+        "_id": "2",
+        "_score": 0.42039964,
+        "_source": {
+           "title": "Jumping jack rabbits"
+        }
+     }
+  ]
+}
+
+如果同时查询两个字段，然后使用bool查询将评分结果合并 ，那么两个文档都是匹配的（title字段的作用），而且文档2的相关度评分更高（ title.std 字段的作
+用）：
+GET /my_index/_search
+{
+   "query": {
+        "multi_match": {
+            "query":  "jumping rabbits",
+            "type":   "most_fields",
+            "fields": [ "title", "title.std" ]
+        }
+    }
+}
+
+每个字段对于最终评分的贡献可以通过自定义值boost来控制。比如，使title字段更为重要，这样同时也降低了其他信号字段的作用：
+GET /my_index/_search
+{
+   "query": {
+        "multi_match": {
+            "query":       "jumping rabbits",
+            "type":        "most_fields",
+            "fields":      [ "title^10", "title.std" ]
+        }
+    }
+}

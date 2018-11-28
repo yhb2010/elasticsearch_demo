@@ -1,0 +1,38 @@
+dynamic可接受的选项如下：
+	true：动态添加新的字段--缺省
+	false：忽略新的字段
+	strict：如果遇到新字段抛出异常
+配置参数dynamic可以用在根object或任何object类型的字段上。你可以将dynamic的默认值设置为strict, 而只在指定的内部对象中开启它, 例如：
+PUT /my_index/my_type/_mapping
+{
+    "my_type": {
+        "dynamic":      "strict",		1
+        "properties": {
+            "stash":  {
+                "type":     "object",	2
+                "dynamic":  true
+            }
+        }
+    }
+}
+1、如果遇到新字段，对象my_type就会抛出异常。
+2、内部对象 stash 遇到新字段就会动态创建新字段。
+
+使用上述动态映射， 你可以给 stash 对象添加新的可检索的字段：
+
+PUT /my_index/my_type/1
+{
+    "title":   "This doc adds a new field",
+    "stash": { "new_field": "Success!" }
+}
+VIEW IN SENSE
+但是对根节点对象 my_type 进行同样的操作会失败：
+
+PUT /my_index/my_type/1
+{
+    "title":     "This throws a StrictDynamicMappingException",
+    "new_field": "Fail!"
+}
+VIEW IN SENSE
+Note
+把 dynamic 设置为 false 一点儿也不会改变 _source 的字段内容。 _source 仍然包含被索引的整个JSON文档。只是新的字段不会被加到映射中也不可搜索。

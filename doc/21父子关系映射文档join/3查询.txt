@@ -1,0 +1,131 @@
+Join全量检索：
+	post	/my_join_index/_search
+	{
+	  "query": {
+	    "match_all": {}
+	  },
+	  "sort": ["_id"]
+	}
+
+基于父文档查找子文档：
+	post	/my_join_index/_search
+	{
+	    "query": {
+	        "has_parent" : {
+	            "parent_type" : "question",
+	            "query" : {
+	                "match" : {
+	                    "text" : "This is"
+	                }
+	            }
+	        }
+	    }
+	}
+	post	/company/_search
+	{
+	    "query":{
+	        "has_parent":{
+	            "parent_type":"branch",
+	            "query":{
+	                "match":{
+	                    "country":"UK"
+	                }
+	            }
+	        }
+	    }
+	}
+
+基于子文档查找父文档：
+	post	/my_join_index/_search
+	{
+		"query": {
+	        "has_child" : {
+	            "type" : "answer",
+	            "query" : {
+	                "match" : {
+	                    "text" : "This is question"
+	                }
+	            }
+	        }
+	    }
+	}
+	post	/company/_search
+	{
+	    "query":{
+	        "has_child":{
+	            "type":"employee",
+	            "query":{
+	                "range":{
+	                    "dob":{
+	                        "gte":"1980-01-01"
+	                    }
+	                }
+	            }
+	        }
+	    }
+	}
+	has_child 查询可以匹配多个子文档 ，并且每一个子文档的评分都不同。但是由于每一个子文档都带有评分，这些评分如何规约成父文档的总得分
+	取决于 score_mode 这个参数。该参数有多种取值策略：默认为 none ，会忽略子文档的评分，并且会给父文档评分设置为 1.0 ； 除此以外还可以
+	设置成 avg 、 min 、 max 和 sum 。
+	下面的查询将会同时返回 london 和 liverpool ，不过由于 Alice Smith 要比 Barry Smith 更加匹配查询条件，因此 london 会得到一个
+	更高的评分。
+	{
+	    "query":{
+	        "has_child":{
+	            "type":"employee",
+	            "score_mode":"max",
+	            "query":{
+	                "match":{
+	                    "name":"Alice Smith"
+	                }
+	            }
+	        }
+	    }
+	}
+	score_mode 为默认的 none 时，会显著地比其模式要快，这是因为Elasticsearch不需要计算每一个子文档的评分。只有当你真正需要关心
+	评分结果时，才需要为 score_mode 设值。
+	min_children 和 max_children：只有当子文档数量在指定范围内时，才会返回父文档。
+	如下查询只会返回至少有两个雇员的分公司：
+	{
+	    "query":{
+	        "has_child":{
+	            "type":"employee",
+	            "min_children":2,
+	            "query":{
+	                "match_all":{
+
+	                }
+	            }
+	        }
+	    }
+	}
+	带有 min_children 和 max_children 参数的 has_child 查询或过滤，和允许评分的 has_child 查询的性能非常接近。
+
+以下操作含义如下：
+	1）parent_id是特定的检索方式，用于检索属于特定父文档id=1的，子文档类型为answer的文档的个数。
+	2）基于父文档类型question进行聚合；
+	3）基于指定的field处理。
+	post	/my_join_index/_search
+	{
+	    "query":{
+	        "parent_id":{
+	            "type":"answer",
+	            "id":"1"
+	        }
+	    },
+	    "aggs":{
+	        "parents":{
+	            "terms":{
+	                "field":"my_join_field#question",
+	                "size":10
+	            }
+	        }
+	    },
+	    "script_fields":{
+	        "parent":{
+	            "script":{
+	                "source":"doc['my_join_field#question']"
+	            }
+	        }
+	    }
+	}

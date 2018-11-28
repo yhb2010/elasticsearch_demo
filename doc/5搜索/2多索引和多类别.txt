@@ -1,0 +1,14 @@
+/_search
+在所有索引的所有类型中搜索
+/gb/_search
+在索引gb的所有类型中搜索
+/gb,us/_search
+在索引gb和us的所有类型中搜索
+/g*,u*/_search
+在以g或u开头的索引的所有类型中搜索
+/gb/user/_search
+在索引gb的类型user中搜索
+/gb,us/user,tweet/_search
+在索引gb和us的类型为user和tweet中搜索
+/_all/user,tweet/_search
+在所有索引的user和tweet中搜索

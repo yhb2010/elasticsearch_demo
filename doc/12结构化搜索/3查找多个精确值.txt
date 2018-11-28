@@ -1,0 +1,33 @@
+{
+   "query" : {
+      "constant_score" : {
+         "filter" : {
+		    "terms" : {
+		        "price" : [20, 30]
+		    }
+         }
+      }
+   }
+}
+
+精确相等：
+	如果一定期望得到我们前面说的那种行为（即整个字段完全相等），最好的方式是增加并索引另一个字段， 这个字段用以存储该字段包含词项的数量，同样以上面
+	提到的两个文档为例，现在我们包括了一个维护标签数的新字段：
+	{ "tags" : ["search"], "tag_count" : 1 }
+	{ "tags" : ["search", "open_source"], "tag_count" : 2 }
+	一旦增加这个用来索引项term数目信息的字段，我们就可以构造一个constant_score查询，来确保结果中的文档所包含的词项数量与要求是一致的：
+	GET /my_index/my_type/_search
+	{
+	    "query": {
+	        "constant_score" : {
+	            "filter" : {
+	                 "bool" : {
+	                    "must" : [
+	                        { "term" : { "tags" : "search" } },
+	                        { "term" : { "tag_count" : 1 } }
+	                    ]
+	                }
+	            }
+	        }
+	    }
+	}

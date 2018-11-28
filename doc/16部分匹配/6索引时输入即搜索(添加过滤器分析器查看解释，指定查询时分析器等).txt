@@ -1,0 +1,132 @@
+第一步需要配置一个自定义的 edge_ngram token 过滤器，称为 autocomplete_filter ：
+	{
+	    "filter": {
+	        "autocomplete_filter": {
+	            "type":     "edge_ngram",
+	            "min_gram": 1,
+	            "max_gram": 20
+	        }
+	    }
+	}
+这个配置的意思是：对于这个 token 过滤器接收的任意词项，过滤器会为之生成一个最小固定值为 1 ，最大为 20 的 n-gram 。
+然后会在一个自定义分析器 autocomplete 中使用上面这个 token 过滤器：
+	{
+	    "analyzer": {
+	        "autocomplete": {
+	            "type":      "custom",
+	            "tokenizer": "standard",
+	            "filter": [
+	                "lowercase",
+	                "autocomplete_filter"
+	            ]
+	        }
+	    }
+	}
+自定义的edge-ngram token过滤器。这个分析器使用standard分词器将字符串拆分为独立的词，并且将它们都变成小写形式，然后为每个词生成一个边界 n-gram。
+完整示例如下：
+	PUT /my_index
+	{
+	    "settings": {
+	        "number_of_shards":1,
+	        "analysis": {
+	            "filter": {
+	                "autocomplete_filter": {
+	                    "type":     "edge_ngram",
+	                    "min_gram": 1,
+	                    "max_gram": 20
+	                }
+	            },
+	            "analyzer": {
+	                "autocomplete": {
+	                    "type":      "custom",
+	                    "tokenizer": "standard",
+	                    "filter": [
+	                        "lowercase",
+	                        "autocomplete_filter"
+	                    ]
+	                }
+	            }
+	        }
+	    }
+	}
+
+可以用 update-mapping API 将这个分析器应用到具体字段：
+	PUT /my_index/_mapping/my_type
+	{
+	    "my_type": {
+	        "properties": {
+	            "name": {
+	                "type":     "text",
+	                "analyzer": "autocomplete"
+	            }
+	        }
+	    }
+	}
+
+
+可以拿 analyze API 测试这个新的分析器确保它行为正确：
+	GET /my_index/_analyze
+	{
+		"field": "name",
+		"text": "quick brown"
+	}
+结果表明分析器能正确工作，并返回以下词：
+	q
+	qu
+	qui
+	quic
+	quick
+	b
+	br
+	bro
+	brow
+	brown
+
+现在创建一些测试文档：
+	POST /my_index/my_type/_bulk
+	{ "index": { "_id": 1            }}
+	{ "name": "Brown foxes"    }
+	{ "index": { "_id": 2            }}
+	{ "name": "Yellow furballs" }
+
+GET /my_index/my_type/_validate/query?explain
+	{
+	    "query": {
+	        "match": {
+	            "name": "brown fo"
+	        }
+	    }
+	}
+	explanation 表明查询会查找边界 n-grams 里的每个词：
+	name:b name:br name:bro name:brow name:brown name:f name:fo
+
+我们需要保证倒排索引表中包含边界 n-grams 的每个词，但是我们只想匹配用户输入的完整词组（ brown 和 fo ）， 可以通过在索引时使用autocomplete分析器，
+并在搜索时使用 standard 标准分析器来实现这种想法，只要改变查询使用的搜索分析器 analyzer 参数即可：
+	GET /my_index/my_type/_search
+	{
+	    "query": {
+	        "match": {
+	            "name": {
+	                "query":    "brown fo",
+	                "analyzer": "standard"
+	            }
+	        }
+	    }
+	}
+
+换种方式，我们可以在映射中，为 name 字段分别指定 index_analyzer 和 search_analyzer 。因为我们只想改变 search_analyzer ，这里只要更新现有的映
+射而不用对数据重新创建索引：
+	PUT /my_index/my_type/_mapping
+	{
+	    "my_type": {
+	        "properties": {
+	            "name": {
+	                "type":            "text",
+	                "analyzer":  "autocomplete", 				1
+	                "search_analyzer": "standard" 				2
+	            }
+	        }
+	    }
+	}
+	1、在索引时，使用autocomplete分析器生成边界n-grams的每个词。
+	2、在搜索时，使用 standard 分析器只搜索用户输入的词。

@@ -1,0 +1,114 @@
+到目前为止, 我们已经通过索引一篇文档创建了一个新的索引 。这个索引采用的是默认的配置，新的字段通过动态映射的方式被添加到类型映射。现在我们
+需要对这个建立索引的过程做更多的控制：我们想要确保这个索引有数量适中的主分片，并且在我们索引任何数据 之前 ，分析器和映射已经被建立好。
+为了达到这个目的，我们需要手动创建索引，在请求体里面传入设置或类型映射，如下所示：
+PUT /my_index
+{
+    "settings": { ... any settings ... },
+    "mappings": {
+        "type_one": { ... any mappings ... },
+        "type_two": { ... any mappings ... },
+        ...
+    }
+}
+
+{
+	"settings":{
+        "index": {
+               "refresh_interval" : "-1",  //减少shard刷新间隔，用于大规模bulk插入，且对实时查询不要求时使用，完成bulk插入后再修改为1s
+               "number_of_shards": "20",  //初始化20个主分片,分片数量确定后不可修改,非常重要
+               "translog.flush_threshold_size": "1024mb" //默认是200mb,增大这个参数可以允许translog在flush前存放更大的段(segment);更大的段的创建会减少flush的频率，并且更大的段合并越少，会减少磁盘IO，索引性能更高。
+               "number_of_replicas": "1", //设置1个备份，bulk导入大量的数据，可以考虑不要副本，设置为0
+               "max_result_window": 999999
+            }
+    },
+    "mappings" :{
+        "my_type" : {
+           "include_in_all": false, //禁用_all,可以在具体字段打开
+           "dynamic": "false",
+            "_source": {
+                "enabled": "true"
+            },
+            "_all": { "analyzer": "ik_max_word" },
+            "properties": {
+                "myid" : {
+                    "type": "keyword",//5x后废弃了string，改为keyword和text
+                    "index": "not_analyzed",
+                    "include_in_all": true,
+                    "store": true
+                }
+       }
+     }
+   }
+}
+
+如果你想禁止自动创建索引，你 可以通过在 config/elasticsearch.yml 的每个节点下添加下面的配置：
+action.auto_create_index: false
+
+
+下面是两个 最重要的设置：
+number_of_shards
+每个索引的主分片数，默认值是 5 。这个配置在索引创建后不能修改。
+number_of_replicas
+每个主分片的副本数，默认值是 1 。对于活动的索引库，这个配置可以随时修改。
+例如，我们可以创建只有 一个主分片，没有副本的小索引：
+PUT /my_temp_index
+{
+    "settings": {
+        "number_of_shards" :   1,
+        "number_of_replicas" : 0
+    }
+}
+然后，我们可以用 update-index-settings API 动态修改副本数：
+PUT /my_temp_index/_settings
+{
+    "number_of_replicas": 1
+}
+
+
+删除一个索引
+DELETE /my_index
+你也可以这样删除多个索引：
+DELETE /index_one,index_two
+DELETE /index_*
+你甚至可以这样删除 全部 索引：
+DELETE /_all
+DELETE /*
+Note
+对一些人来说，能够用单个命令来删除所有数据可能会导致可怕的后果。如果你想要避免意外的大量删除, 你可以在你的 elasticsearch.yml 做如下配置：
+action.destructive_requires_name: true
+这个设置使删除只限于特定名称指向的数据, 而不允许通过指定 _all 或通配符来删除指定索引库。
+
+更新索引类型：
+PUT /my_index/my_type/_mapping
+{
+    "my_type": {
+        "dynamic":      "strict",
+        "properties": {
+            "stash":  {
+                "type":     "object",
+                "dynamic":  true
+            }
+        }
+    }
+}
+
+创建一个索引：
+{
+    "settings": { "number_of_shards": 1 },
+    "mappings": {
+        "book": {
+            "properties": {
+                "name": {
+                    "type":     "keyword"
+                },
+                "message": {
+                    "type":     "text",
+                    "analyzer": "ik_smart"
+                },
+                "postDate":{
+                	"type":"date"
+                }
+            }
+        }
+    }
+}

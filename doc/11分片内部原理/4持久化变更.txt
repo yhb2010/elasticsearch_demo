@@ -1,0 +1,40 @@
+如果没有用 fsync 把数据从文件系统缓存刷（flush）到硬盘，我们不能保证数据在断电甚至是程序正常退出之后依然存在。为了保证 Elasticsearch 的可靠性，
+需要确保数据变化被持久化到磁盘。
+Elasticsearch 增加了一个 translog ，或者叫事务日志，在每一次对 Elasticsearch 进行操作时均进行了日志记录。通过 translog ，整个流程看起来是下
+面这样：
+	1、一个文档被索引之后，就会被添加到内存缓冲区，并且追加到了translog。
+	2、刷新（refresh）使分片处于“刷新（refresh）完成后, 缓存被清空但是事务日志不会”描述的状态，分片每秒被刷新（refresh）一次：
+		这些在内存缓冲区的文档被写入到一个新的段中，且没有进行 fsync 操作。   ** 这个段被打开，使其可被搜索。
+		内存缓冲区被清空。
+	3、这个进程继续工作，更多的文档被添加到内存缓冲区和追加到事务日志。
+	4、每隔一段时间--例如 translog 变得越来越大--索引被刷新（flush）；一个新的 translog 被创建，并且一个全量提交被执行。
+		所有在内存缓冲区的文档都被写入一个新的段。
+		缓冲区被清空。
+		一个提交点被写入硬盘。
+		文件系统缓存通过 fsync 被刷新（flush）。
+		老的 translog 被删除。
+
+分片每30分钟被自动刷新（flush），或者在 translog 太大的时候也会刷新。
+
+flush API 可以 被用来执行一个手工的刷新（flush）:
+	POST /blogs/_flush
+	POST /_flush?wait_for_ongoing
+	刷新（flush） blogs 索引。
+	刷新（flush）所有的索引并且并且等待所有刷新在返回前完成。
+	你很少需要自己执行一个手工的 `flush`；通常情况下，自动刷新就足够了。
+
+translog的目的是保证操作不会丢失。这引出了这个问题： Translog有多安全 ？
+	在文件被fsync到磁盘前，被写入的文件在重启之后就会丢失。默认translog是每5秒被 fsync刷新到硬盘， 或者是在写请求完成之后执行
+	(e.g. index, delete, update, bulk)。这个过程在主分片和复制分片都会发生。最终， 这意味着在整个请求被fsync到主分片和复制分片的translog
+	之前，你的客户端不会得到一个 200 OK响应。
+	在每次请求后都执行一个fsync会带来一些性能损失，尽管实践表明这种损失相对较小（特别是bulk导入，它在一次请求中平摊了大量文档的开销）。
+	但是对于一些大容量的偶尔丢失几秒数据问题也并不严重的集群，使用异步的fsync还是比较有益的。比如，写入的数据被缓存到内存中，并且每5秒执行一次
+	fsync。
+	这个行为可以通过设置 durability 参数为 async 来启用：
+	PUT /my_index/_settings
+	{
+	    "index.translog.durability": "async",
+	    "index.translog.sync_interval": "5s"
+	}
+	这个选项可以针对索引单独设置，并且可以动态进行修改。如果你决定使用异步translog的话，你需要保证在发生crash时，丢失掉sync_interval时间段的数
+	据也无所谓。如果你不确定这个行为的后果，最好是使用默认的参数（ "index.translog.durability": "request" ）来避免数据丢失。

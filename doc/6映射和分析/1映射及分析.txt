@@ -1,0 +1,26 @@
+GET /website/_mapping/blog
+{
+   "gb": {
+      "mappings": {
+         "tweet": {
+            "properties": {
+               "date": {
+                  "type": "date",
+                  "format": "dateOptionalTime"
+               },
+               "name": {
+                  "type": "string"
+               },
+               "tweet": {
+                  "type": "string"
+               },
+               "user_id": {
+                  "type": "long"
+               }
+            }
+         }
+      }
+   }
+}
+
+Elasticsearch为对字段类型进行猜测，动态生成了字段和类型的映射关系。

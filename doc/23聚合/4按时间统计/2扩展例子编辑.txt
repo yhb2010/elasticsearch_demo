@@ -1,0 +1,37 @@
+同时按季度、按每个汽车品牌计算销售总额，以便可以找出哪种品牌最赚钱：
+	GET /cars/transactions/_search
+	{
+	   "size" : 0,
+	   "aggs": {
+	      "sales": {
+	         "date_histogram": {
+	            "field": "sold",
+	            "interval": "quarter", 	注意我们把时间间隔从 month 改成了 quarter 。
+	            "format": "yyyy-MM-dd",
+	            "min_doc_count" : 0,
+	            "extended_bounds" : {
+	                "min" : "2014-01-01",
+	                "max" : "2014-12-31"
+	            }
+	         },
+	         "aggs": {
+	            "per_make_sum": {
+	               "terms": {
+	                  "field": "make"
+	               },
+	               "aggs": {
+	                  "sum_price": {
+	                     "sum": { "field": "price" }	计算每种品牌的总销售金额。
+	                  }
+	               }
+	            },
+	            "total_sum": {
+	               "sum": { "field": "price" }	也计算所有全部品牌的汇总销售金额。
+	            }
+	         }
+	      }
+	   }
+	}
+
+因为聚合的实时性，类似这样的面板很容易查询、操作和交互。这使得它们成为需要分析数据又不会构建 Hadoop 作业的非技术人员的理想工具。
+当然，为了构建类似 Kibana 这样的强大面板，你可能需要更深的知识，比如基于范围、过滤以及排序的聚合。

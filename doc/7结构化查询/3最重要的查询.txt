@@ -1,0 +1,67 @@
+match_all 查询
+match_all 查询简单的 匹配所有文档。在没有指定查询方式时，它是默认的查询：
+{ "match_all": {}}
+
+match 查询
+无论你在任何字段上进行的是全文搜索还是精确查询，match 查询是你可用的标准查询。
+如果你在一个全文字段上使用 match 查询，在执行查询前，它将用正确的分析器去分析查询字符串：
+{ "match": { "tweet": "About Search" }}
+
+如果在一个精确值的字段上使用它， 例如数字、日期、布尔或者一个 not_analyzed 字符串字段，那么它将会精确匹配给定的值：
+{ "match": { "age":    26           }}
+{ "match": { "date":   "2014-09-01" }}
+{ "match": { "public": true         }}
+{ "match": { "tag":    "full_text"  }}
+
+multi_match 查询可以在多个字段上执行相同的 match 查询：
+{
+    "multi_match": {
+        "query":    "full text search",
+        "fields":   [ "title", "body" ]
+    }
+}
+
+range 查询找出那些落在指定区间内的数字或者时间：
+{
+    "query": {
+	    "range": {
+	        "age": {
+	            "gte":  20,
+	            "lt":   30
+	        }
+	    }
+    }
+}
+被允许的操作符如下：
+gt大于
+gte大于等于
+lt小于
+lte小于等于
+
+term 查询
+term 查询被用于精确值 匹配，这些精确值可能是数字、时间、布尔或者那些 not_analyzed 的字符串：
+{ "term": { "age":    26           }}
+{ "term": { "date":   "2014-09-01" }}
+{ "term": { "public": true         }}
+{ "term": { "tag":    "full_text"  }}
+VIEW IN SENSE
+term 查询对于输入的文本不 分析 ，所以它将给定的值进行精确查询。
+
+terms 查询
+terms 查询和 term 查询一样，但它允许你指定多值进行匹配。如果这个字段包含了指定值中的任何一个值，那么这个文档满足条件：
+{ "terms": { "tag": [ "search", "full_text", "nosql" ] }}
+
+exists 查询和 missing 查询
+exists 查询和 missing 查询被用于查找那些指定字段中有值 (exists) 或无值 (missing) 的文档。这与SQL中的 IS_NULL (missing) 和 NOT IS_NULL (exists) 在本质上具有共性：
+{
+    "exists":   {
+        "field":    "title"
+    }
+}
+
+在一个搜索请求里，你可以通过在请求体中指定 _source 参数，来达到只获取特定的字段的效果：
+GET /_search
+{
+    "query":   { "match_all": {}},
+    "_source": [ "title", "created" ]
+}

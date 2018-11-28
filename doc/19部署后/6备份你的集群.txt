@@ -1,0 +1,84 @@
+要备份你的集群，你可以使用 snapshot API。这个会拿到你集群里当前的状态和数据然后保存到一个共享仓库里。这个备份过程是"智能"的。你的第一个快照会是一个
+数据的完整拷贝，但是所有后续的快照会保留的是已存快照和新数据之间的差异。随着你不时的对数据进行快照，备份也在增量的添加和删除。这意味着后续备份会相当
+快速，因为它们只传输很小的数据量。
+要使用这个功能，你必须首先创建一个保存数据的仓库。有多个仓库类型可以供你选择：
+	共享文件系统，比如 NAS
+	Amazon S3
+	HDFS (Hadoop 分布式文件系统)
+	Azure Cloud
+
+创建仓库：
+	让我部署一个共享 文件系统仓库：
+	PUT _snapshot/my_backup
+	{
+	    "type": "fs",
+	    "settings": {
+	        "location": "/mount/backups/my_backup"
+	    }
+	}
+	给我们的仓库取一个名字，在本例它叫 my_backup 。
+	我们指定仓库的类型应该是一个共享文件系统。
+	最后，我们提供一个已挂载的设备作为目的地址。
+	注意：共享文件系统路径必须确保集群所有节点都可以访问到。
+
+max_snapshot_bytes_per_sec
+当快照数据进入仓库时，这个参数控制这个过程的限流情况。默认是每秒 20mb 。
+max_restore_bytes_per_sec
+当从仓库恢复数据时，这个参数控制什么时候恢复过程会被限流以保障你的网络不会被占满。默认是每秒 `20mb`。
+修改默认值：
+	POST _snapshot/my_backup/
+	{
+	    "type": "fs",
+	    "settings": {
+	        "location": "/mount/backups/my_backup",
+	        "max_snapshot_bytes_per_sec" : "50mb",
+	        "max_restore_bytes_per_sec" : "50mb"
+	    }
+	}
+
+PUT _snapshot/my_backup/snapshot_1
+这个会备份所有打开的索引到 my_backup 仓库下一个命名为 snapshot_1 的快照里。这个调用会立刻返回，然后快照会在后台运行。
+通常你会希望你的快照作为后台进程运行，不过有时候你会希望在你的脚本中一直等待到完成。这可以通过添加一个 wait_for_completion 标记实现：
+PUT _snapshot/my_backup/snapshot_1?wait_for_completion=true
+
+PUT _snapshot/my_backup/snapshot_2
+{
+    "indices": "index_1,index_2"
+}
+这个快照命令现在只会备份 index1 和 index2 了。
+
+要获得单个快照的信息，直接对仓库和快照名发起一个 GET 请求：
+	GET _snapshot/my_backup/snapshot_2
+要获取一个仓库中所有快照的完整列表，使用 _all 占位符替换掉具体的快照名称：
+	GET _snapshot/my_backup/_all
+
+删除所有不再有用的旧快照 。这只要对仓库/快照名称发一个简单的 DELETE HTTP 调用：
+	DELETE _snapshot/my_backup/snapshot_2
+
+_status API 立刻返回，然后给出详细的多的统计值输出，调用这个命令的时候快照还在进行中，你会看到它什么时候开始，运行了多久等等信息。
+	GET _snapshot/my_backup/snapshot_3/_status
+	{
+	   "snapshots": [
+	      {
+	         "snapshot": "snapshot_3",
+	         "repository": "my_backup",
+	         "state": "IN_PROGRESS",			1
+	         "shards_stats": {
+	            "initializing": 0,
+	            "started": 1,					2
+	            "finalizing": 0,
+	            "done": 4,
+	            "failed": 0,
+	            "total": 5
+	         },
+	1、一个正在运行的快照会显示 IN_PROGRESS 作为状态。
+	2、这个特定快照有一个分片还在传输（另外四个已经完成）。
+	INITIALIZING：分片在检查集群状态看看自己是否可以被快照。这个一般是非常快的。
+	STARTED：数据正在被传输到仓库。
+	FINALIZING：数据传输完成；分片现在在发送快照元数据。
+	DONE：快照完成！
+	FAILED：快照处理的时候碰到了错误，这个分片/索引/快照不可能完成了。检查你的日志获取更多信息。
+
+取消一个快照，在他进行中的时候简单的删除快照就可以：
+	DELETE _snapshot/my_backup/snapshot_3
+	这个会中断快照进程。然后删除仓库里进行到一半的快照。

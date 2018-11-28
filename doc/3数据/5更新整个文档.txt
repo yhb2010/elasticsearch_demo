@@ -1,0 +1,19 @@
+文档在Elasticsearch中是不可变的——我们不能修改他们。如果需要更新已存在的文档，我们可以使用《索引文档》章节提到的index API 重建索引
+(reindex) 或者替换掉它。
+PUT /website/blog/123
+{
+  "title": "My first blog entry",
+  "text":  "I am starting to get the hang of this...",
+  "date":  "2014/01/02"
+}
+在响应中，我们可以看到Elasticsearch把_version增加了。
+{
+  "_index" :   "website",
+  "_type" :    "blog",
+  "_id" :      "123",
+  "_version" : 2,
+  "created":   false <1>
+}
+<1> created标识为false因为同索引、同类型下已经存在同ID的文档。
+在内部，Elasticsearch已经标记旧文档为删除并添加了一个完整的新文档。旧版本文档不会立即消失，但你也不能去访问它。Elasticsearch会在你继
+续索引更多数据时清理被删除的文档。

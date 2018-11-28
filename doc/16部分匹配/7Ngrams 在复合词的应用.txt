@@ -1,0 +1,100 @@
+有些人希望在搜索 “Wörterbuch”（字典）的时候，能在结果中看到 “Aussprachewörtebuch”（发音字典）。同样，搜索 “Adler”（鹰）的时候，能将
+“Weißkopfseeadler”（秃鹰）包括在结果中。
+处理这种语言的一种方式可以用 组合词 token 过滤器（compound word token filter） 将复合词拆分成各自部分，但这种方式的结果质量依赖于组合词字典的质
+量。
+另一种方式就是将所有的词用 n-gram 进行处理，然后搜索任何匹配的片段——能匹配的片段越多，文档的相关度越大。
+假设某个 n-gram 是一个词上的滑动窗口，那么任何长度的 n-gram 都可以遍历这个词。我们既希望选择足够长的值让拆分的词项具有意义，又不至于因为太长而生成过
+多的唯一词。一个长度为 3 的 trigram 可能是一个不错的开始：
+	PUT /my_index
+	{
+	    "settings": {
+	        "analysis": {
+	            "filter": {
+	                "trigrams_filter": {
+	                    "type":     "ngram",
+	                    "min_gram": 3,
+	                    "max_gram": 3
+	                }
+	            },
+	            "analyzer": {
+	                "trigrams": {
+	                    "type":      "custom",
+	                    "tokenizer": "standard",
+	                    "filter":   [
+	                        "lowercase",
+	                        "trigrams_filter"
+	                    ]
+	                }
+	            }
+	        }
+	    },
+	    "mappings": {
+	        "my_type": {
+	            "properties": {
+	                "text": {
+	                    "type":     "text",					1
+	                    "analyzer": "trigrams"
+	                }
+	            }
+	        }
+	    }
+	}
+	1、text 字段用 trigrams 分析器索引它的内容，这里 n-gram 的长度是 3 。
+
+使用 analyze API 测试 trigram 分析器：
+	POST /my_index/_analyze
+	{
+		"field": "text",
+		"text": "Weißkopfseeadler"
+	}
+返回以下词项：
+	wei, eiß, ißk, ßko, kop, opf, pfs, fse, see, eea,ead, adl, dle, ler
+
+索引前述示例中的复合词来测试：
+	POST /my_index/my_type/_bulk
+	{ "index": { "_id": 1 }}
+	{ "text": "Aussprachewörterbuch" }
+	{ "index": { "_id": 2 }}
+	{ "text": "Militärgeschichte" }
+	{ "index": { "_id": 3 }}
+	{ "text": "Weißkopfseeadler" }
+	{ "index": { "_id": 4 }}
+	{ "text": "Weltgesundheitsorganisation" }
+	{ "index": { "_id": 5 }}
+	{ "text": "Rindfleischetikettierungsüberwachungsaufgabenübertragungsgesetz" }
+“Adler”（鹰）的搜索转化为查询三个词 adl 、 dle 和 ler ：
+	GET /my_index/my_type/_search
+	{
+	    "query": {
+	        "match": {
+	            "text": "Adler"
+	        }
+	    }
+	}
+正好与 “Weißkopfsee-adler” 相匹配：
+	{
+	  "hits": [
+	     {
+	        "_id": "3",
+	        "_score": 3.3191128,
+	        "_source": {
+	           "text": "Weißkopfseeadler"
+	        }
+	     }
+	  ]
+	}
+
+类似查询 “Gesundheit”（健康）可以与 “Welt-gesundheit-sorganisation” 匹配，同时也能与 “Militär-ges-chichte” 和
+“Rindfleischetikettierungsüberwachungsaufgabenübertragungs-ges-etz” 匹配，因为它们同时都有 trigram 生成的 ges ：
+使用合适的 minimum_should_match 可以将这些奇怪的结果排除，只有当 trigram 最少匹配数满足要求时，文档才能被认为是匹配的：
+	GET /my_index/my_type/_search
+	{
+	    "query": {
+	        "match": {
+	            "text": {
+	                "query":                "Gesundheit",
+	                "minimum_should_match": "80%"
+	            }
+	        }
+	    }
+	}

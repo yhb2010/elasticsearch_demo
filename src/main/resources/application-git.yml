@@ -1,0 +1,7 @@
+server:
+  port: 8083
+spring:
+  data:
+    elasticsearch:
+      cluster-name: my-es
+      cluster-nodes: 127.0.0.103:9300,127.0.0.103:9301

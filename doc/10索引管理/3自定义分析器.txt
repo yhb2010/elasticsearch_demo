@@ -1,0 +1,92 @@
+一个 分析器 就是在一个包里面组合了三种函数的一个包装器， 三种函数按照顺序被执行:
+
+字符过滤器
+字符过滤器 用来 整理 一个尚未被分词的字符串。例如，如果我们的文本是HTML格式的，它会包含像 <p> 或者 <div> 这样的HTML标签，这些标签是我们不想索引的。
+我们可以使用 html清除 字符过滤器 来移除掉所有的HTML标签，并且像把 &Aacute; 转换为相对应的Unicode字符 Á 这样，转换HTML实体。
+一个分析器可能有0个或者多个字符过滤器。
+
+分词器
+一个分析器 必须 有一个唯一的分词器。 分词器把字符串分解成单个词条或者词汇单元。 标准 分析器里使用的 标准 分词器 把一个字符串根据单词边界分解成单个词条，
+并且移除掉大部分的标点符号，然而还有其他不同行为的分词器存在。
+例如， 关键词 分词器 完整地输出 接收到的同样的字符串，并不做任何分词。 空格 分词器 只根据空格分割文本 。 正则 分词器 根据匹配正则表达式来分割文本 。
+
+词单元过滤器
+经过分词，作为结果的 词单元流 会按照指定的顺序通过指定的词单元过滤器 。
+词单元过滤器可以修改、添加或者移除词单元。我们已经提到过 lowercase 和 stop 词过滤器 ，但是在 Elasticsearch 里面还有很多可供选择的词单元过滤器。
+ 词干过滤器 把单词 遏制 为 词干。 ascii_folding 过滤器移除变音符，把一个像 "très" 这样的词转换为 "tres" 。 ngram 和 edge_ngram 词单元过滤器 可以
+ 产生 适合用于部分匹配或者自动补全的词单元。
+
+ 创建一个自定义分析器
+PUT /my_index
+{
+    "settings": {
+        "analysis": {
+            "char_filter": { ... custom character filters ... },
+            "tokenizer":   { ...    custom tokenizers     ... },
+            "filter":      { ...   custom token filters   ... },
+            "analyzer":    { ...    custom analyzers      ... }
+        }
+    }
+}
+
+作为示范，让我们一起来创建一个自定义分析器吧，这个分析器可以做到下面的这些事:
+1、使用 html清除 字符过滤器移除HTML部分。
+2、使用一个自定义的映射字符过滤器把 & 替换为 " 和 " ：
+3、使用 标准 分词器分词。
+4、小写词条，使用小写词过滤器处理。
+5、使用自定义停止词过滤器移除自定义的停止词列表中包含的词：
+
+汇总起来，完整的创建索引请求看起来应该像这样：
+PUT /my_index
+{
+    "settings":{
+        "analysis":{
+            "char_filter":{
+                "&_to_and":{
+                    "type":"mapping",
+                    "mappings":[
+                        "&=> and "
+                    ]
+                }
+            },
+            "filter":{
+                "my_stopwords":{
+                    "type":"stop",
+                    "stopwords":[
+                        "the", "a"
+                    ]
+                }
+            },
+            "analyzer":{
+                "my_analyzer":{
+                    "type":"custom",
+                    "char_filter":[
+                        "html_strip", "&_to_and"
+                    ],
+                    "tokenizer":"standard",
+                    "filter":[
+                        "lowercase", "my_stopwords"
+                    ]
+                }
+            }
+        }
+    }
+}
+
+我们可以像下面这样把这个分析器应用在一个 string 字段上：
+PUT /my_index/_mapping/my_type
+{
+    "properties": {
+        "title": {
+            "type":      "text",
+            "analyzer":  "my_analyzer"
+        }
+    }
+}
+
+测试分词器：
+POST	/my_index/_analyze
+{
+	"analyzer" : "my_analyzer",
+	"text" : "The quick & brown fox"
+}

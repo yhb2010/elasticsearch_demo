@@ -1,0 +1,68 @@
+null, [] （空数组）和 [null] 所有这些都是等价的，它们无法存于倒排索引中。数据往往会有缺失字段，或有显式的空值或空数组。为了应对这些状况，
+Elasticsearch 提供了一些工具来处理空或缺失值。
+exists 存在查询。 这个查询会返回那些在指定字段有任何值的文档：
+	POST /my_index/posts/_bulk
+	{ "index": { "_id": "1"              }}
+	{ "tags" : ["search"]                }
+	{ "index": { "_id": "2"              }}
+	{ "tags" : ["search", "open_source"] }
+	{ "index": { "_id": "3"              }}
+	{ "other_field" : "some data"        }
+	{ "index": { "_id": "4"              }}
+	{ "tags" : null                      }
+	{ "index": { "_id": "5"              }}
+	{ "tags" : ["search", null]          }
+
+GET /my_index/posts/_search
+{
+    "query" : {
+        "constant_score" : {
+            "filter" : {
+                "exists" : { "field" : "tags" }
+            }
+        }
+    }
+}
+相当于sql：WHERE  tags IS NOT NULL
+
+GET /my_index/posts/_search
+{
+    "query" : {
+        "constant_score" : {
+            "filter": {
+                "missing" : { "field" : "tags" }
+            }
+        }
+    }
+}
+相当于sql：WHERE  tags IS NULL
+注意：es6不支持了
+
+不仅可以过滤核心类型， exists and missing 查询 还可以处理一个对象的内部字段。以下面文档为例：
+	{
+	   "name" : {
+	      "first" : "John",
+	      "last" :  "Smith"
+	   }
+	}
+我们不仅可以检查name.first和name.last的存在性，也可以检查name，不过在映射中，如上对象的内部是个扁平的字段与值（field-value）的简单键值结构，
+类似下面这样：
+	{
+	   "name.first" : "John",
+	   "name.last"  : "Smith"
+	}
+那么我们如何用exists或missing查询name字段呢？ name字段并不真实存在于倒排索引中。
+当我们执行下面这个过滤的时候：
+	{
+	    "exists" : { "field" : "name" }
+	}
+实际执行的是：
+	{
+	    "bool": {
+	        "should": [
+	            { "exists": { "field": "name.first" }},
+	            { "exists": { "field": "name.last" }}
+	        ]
+	    }
+	}
+这也就意味着，如果 first 和 last 都是空，那么 name 这个命名空间才会被认为不存在。

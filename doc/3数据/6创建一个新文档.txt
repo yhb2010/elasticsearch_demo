@@ -1,0 +1,19 @@
+当索引一个文档，我们如何确定是完全创建了一个新的还是覆盖了一个已经存在的呢？
+请记住_index、_type、_id三者唯一确定一个文档。所以要想保证文档是新加入的，最简单的方式是使用POST方法让Elasticsearch自动生成唯一_id：
+POST /website/blog/
+{ ... }
+
+然而，如果想使用自定义的_id，我们必须告诉Elasticsearch应该在_index、_type、_id三者都不同时才接受请求。为了做到这点有两种方法，它们其实
+做的是同一件事情。你可以选择适合自己的方式：
+第一种方法使用op_type查询参数：
+PUT /website/blog/123?op_type=create
+{ ... }
+或者第二种方法是在URL后加/_create做为端点：
+PUT /website/blog/123/_create
+{ ... }
+如果请求成功的创建了一个新文档，Elasticsearch将返回正常的元数据且响应状态码是201 Created。
+
+另一方面，如果包含相同的_index、_type和_id的文档已经存在，Elasticsearch将返回409
+
+create	当文档不存在时创建之。
+index	创建新文档或替换已有文档。

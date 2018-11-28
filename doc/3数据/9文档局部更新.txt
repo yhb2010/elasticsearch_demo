@@ -1,0 +1,69 @@
+文档是不可变的——它们不能被更改，只能被替换。update API必须遵循相同的规则。表面看来，我们似乎是局部更新了文档的位置，内部却是像我们之前说
+的一样简单的使用update API处理相同的检索-修改-重建索引流程，我们也减少了其他进程可能导致冲突的修改。
+最简单的update请求表单接受一个局部文档参数doc，它会合并到现有文档中——对象合并在一起，存在的标量字段被覆盖，新字段被添加。举个例子，我们可
+以使用以下请求为博客添加一个tags字段和一个views字段：
+POST /website/blog/1/_update
+{
+   "doc" : {
+      "tags" : [ "testing" ],
+      "views": 0
+   }
+}
+检索文档文档显示被更新的_source字段：
+{
+   "_index":    "website",
+   "_type":     "blog",
+   "_id":       "1",
+   "_version":  3,
+   "found":     true,
+   "_source": {
+      "title":  "My first blog entry",
+      "text":   "Starting to get the hang of this...",
+      "tags": [ "testing" ], <1>
+      "views":  0 <1>
+   }
+}
+
+使用Groovy脚本：
+脚本能够使用update API改变_source字段的内容，它在脚本内部以ctx._source表示。例如，我们可以使用脚本增加博客的views数量：
+POST /website/blog/1/_update
+{
+   "script" : "ctx._source.views+=1"
+}
+我们还可以使用脚本增加一个新标签到tags数组中。在这个例子中，我们定义了一个新标签做为参数而不是硬编码在脚本里。这允许Elasticsearch未来可
+以重复利用脚本，而不是在想要增加新标签时必须每次编译新脚本：
+POST /website/blog/1/_update
+{
+   "script" : "ctx._source.tags+=new_tag",
+   "params" : {
+      "new_tag" : "search"
+   }
+}
+
+更新可能不存在的文档
+想象我们要在Elasticsearch中存储浏览量计数器。每当有用户访问页面，我们增加这个页面的浏览量。但如果这是个新页面，我们并不确定这个计数器存
+在与否。当我们试图更新一个不存在的文档，更新将失败。
+在这种情况下，我们可以使用upsert参数定义文档来使其不存在时被创建。
+POST /website/pageviews/1/_update
+{
+   "script" : "ctx._source.views+=1",
+   "upsert": {
+       "views": 1
+   }
+}
+第一次执行这个请求，upsert值被索引为一个新文档，初始化views字段为1.接下来文档已经存在，所以script被更新代替，增加views数量。
+
+更新和冲突
+为了避免丢失数据，update API在检索(retrieve)阶段检索文档的当前_version，然后在重建索引(reindex)阶段通过index请求提交。如果其他进程
+在检索(retrieve)和重建索引(reindex)阶段修改了文档，_version将不能被匹配，然后更新失败。
+对于多用户的局部更新，文档被修改了并不要紧。例如，两个进程都要增加页面浏览量，增加的顺序我们并不关心——如果冲突发生，我们唯一要做的仅仅是重新尝试更新既可。
+这些可以通过retry_on_conflict参数设置重试次数来自动完成，这样update操作将会在发生错误前重试——这个值默认为0。
+
+类似乐观锁：
+POST /website/pageviews/1/_update?versin=2
+{
+   "script" : "ctx._source.views+=1",
+   "upsert": {
+       "views": 1
+   }
+}

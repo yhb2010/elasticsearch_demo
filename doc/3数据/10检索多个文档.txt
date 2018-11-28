@@ -1,0 +1,37 @@
+合并多个请求可以避免每个请求单独的网络开销。如果你需要从Elasticsearch中检索多个文档，相对于一个一个的检索，更快的方式是在一个请求中使用
+multi-get或者mget API
+
+POST /_mget
+{
+   "docs" : [
+      {
+         "_index" : "website",
+         "_type" :  "blog",
+         "_id" :    2
+      },
+      {
+         "_index" : "website",
+         "_type" :  "pageviews",
+         "_id" :    1,
+         "_source": "views"
+      }
+   ]
+}
+
+如果你想检索的文档在同一个_index中（甚至在同一个_type中），你就可以在URL中定义一个默认的/_index或者/_index/_type。
+你依旧可以在单独的请求中使用这些值：
+POST /website/blog/_mget
+{
+   "docs" : [
+      { "_id" : 2 },
+      { "_type" : "pageviews", "_id" :   1 }
+   ]
+}
+事实上，如果所有文档具有相同_index和_type，你可以通过简单的ids数组来代替完整的docs数组：
+POST /website/blog/_mget
+{
+   "ids" : [ "2", "1" ]
+}
+
+尽管前面提到有一个文档没有被找到，但HTTP请求状态码还是200。事实上，就算所有文档都找不到，请求也还是返回200，原因是mget请求本身成功了。
+如果想知道每个文档是否都成功了，你需要检查found标志。

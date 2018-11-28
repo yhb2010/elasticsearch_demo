@@ -1,0 +1,106 @@
+一对多对多定义
+实现如下图的祖孙三代关联关系的定义。
+	PUT /join_multi_index
+	{
+	    "mappings":{
+	        "_doc":{
+	            "properties":{
+	                "my_join_field":{
+	                    "type":"join",
+	                    "relations":{
+	                        "question":[
+	                            "answer",
+	                            "comment"
+	                        ],
+	                        "answer":"vote"
+	                    }
+	                }
+	            }
+	        }
+	    }
+	}
+	put	/company
+	{
+	    "mappings":{
+	        "_doc":{
+	            "properties":{
+	                "my_join_field":{
+	                    "type":"join",
+	                    "relations":{
+	                        "country":"branch",
+	                        "branch":"employee"
+	                    }
+	                }
+	            }
+	        }
+	    }
+	}
+
+孙子文档导入数据，如下所示：
+	PUT join_multi_index/_doc/3?routing=1&refresh
+	{
+		"text": "This is a vote",
+		"my_join_field": {
+			"name": "vote",
+			"parent": "2"
+		}
+	}
+	1- 孙子文档所在分片必须与其父母和祖父母相同
+	2- 孙子文档的父代号（必须指向其父亲answer文档）
+	put	/company/_doc/uk
+	{ "name": "UK", "my_join_field":"country" }
+	put	/company/_doc/france
+	{ "name": "France", "my_join_field":"country" }
+	put	/company/_doc/london?routing=uk&refresh
+	{
+	    "name":"London Westmintster",
+	    "my_join_field":{
+	        "name":"branch",
+	        "parent":"uk"
+	    }
+	}
+	put	/company/_doc/liverpool?routing=uk&refresh
+	{
+	    "name":"Liverpool Central",
+	    "my_join_field":{
+	        "name":"branch",
+	        "parent":"uk"
+	    }
+	}
+	put	/company/_doc/paris?routing=france&refresh
+	{
+	    "name":"Champs Élysées",
+	    "my_join_field":{
+	        "name":"branch",
+	        "parent":"france"
+	    }
+	}
+	PUT /company/_doc/1?routing=uk&refresh
+	{
+		"name":  "Alice Smith",
+		"dob":   "1970-10-24",
+		"hobby": "hiking",
+		"my_join_field": {
+			"name": "employee",
+			"parent": "london"
+		}
+	}
+
+查询：
+	{
+	    "query":{
+	        "has_child":{
+	            "type":"branch",
+	            "query":{
+	                "has_child":{
+	                    "type":"employee",
+	                    "query":{
+	                        "match":{
+	                            "hobby":"hiking"
+	                        }
+	                    }
+	                }
+	            }
+	        }
+	    }
+	}

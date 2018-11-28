@@ -1,0 +1,33 @@
+设置一个字段为 nested 很简单 —  你只需要将字段类型 object 替换为 nested 即可：
+	PUT /my_index
+	{
+	    "mappings":{
+	        "blogpost":{
+	            "properties":{
+	                "comments":{
+	                    "type":"nested",	nested 字段类型的设置参数与 object 相同。
+	                    "properties":{
+	                        "name":{
+	                            "type":"text"
+	                        },
+	                        "comment":{
+	                            "type":"text"
+	                        },
+	                        "age":{
+	                            "type":"short"
+	                        },
+	                        "stars":{
+	                            "type":"short"
+	                        },
+	                        "date":{
+	                            "type":"date"
+	                        }
+	                    }
+	                },
+	                "tags":{
+	                	"type":"keyword"
+	                }
+	            }
+	        }
+	    }
+	}

@@ -1,0 +1,28 @@
+在下面的例子中，我们创建了一个新的分析器，叫做 es_std ， 并使用预定义的 西班牙语停用词列表：
+PUT /spanish_docs
+{
+    "settings": {
+        "analysis": {
+            "analyzer": {
+                "es_std": {
+                    "type":      "standard",
+                    "stopwords": "_spanish_"
+                }
+            }
+        }
+    }
+}
+es_std分析器不是全局的--它仅仅存在于我们定义的 spanish_docs索引中。 为了使用 analyze API来对它进行测试，我们必须使用特定的索引名：
+
+GET /spanish_docs/_analyze?analyzer=es_std
+El veloz zorro marrón
+
+简化的结果显示西班牙语停用词 El 已被正确的移除：
+
+{
+  "tokens" : [
+    { "token" :    "veloz",   "position" : 2 },
+    { "token" :    "zorro",   "position" : 3 },
+    { "token" :    "marrón",  "position" : 4 }
+  ]
+}

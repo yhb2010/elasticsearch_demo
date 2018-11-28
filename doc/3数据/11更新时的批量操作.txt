@@ -1,0 +1,46 @@
+就像mget允许我们一次性检索多个文档一样，bulk API允许我们使用单一请求来实现多个文档的create、index、update或delete。
+
+bulk请求体如下，它有一点不同寻常：
+{ action: { metadata }}\n
+{ request body        }\n
+{ action: { metadata }}\n
+{ request body        }\n
+...
+这种格式类似于用"\n"符号连接起来的一行一行的JSON文档流(stream)。两个重要的点需要注意：
+每行必须以"\n"符号结尾，包括最后一行。这些都是作为每行有效的分离而做的标记。
+每一行的数据不能包含未被转义的换行符，它们会干扰分析——这意味着JSON不能被美化打印。
+
+在索引、创建、更新或删除时必须指定文档的_index、_type、_id这些元数据(metadata)。
+例如删除请求看起来像这样：
+{ "delete": { "_index": "website", "_type": "blog", "_id": "123" }}
+
+请求体(request body)由文档的_source组成——文档所包含的一些字段以及其值。它被index和create操作所必须，这些还被update操作所必需。
+POST /_bulk
+{ "delete": { "_index": "website", "_type": "blog", "_id": "123" }}
+{ "create": { "_index": "website", "_type": "blog", "_id": "123" }}
+{ "title":    "My first blog post" }
+{ "index":  { "_index": "website", "_type": "blog" }}
+{ "title":    "My second blog post" }
+{ "update": { "_index": "website", "_type": "blog", "_id": "123", "_retry_on_conflict" : 3} }
+{ "doc" : {"title" : "My updated blog post"} }
+
+每个子请求都被独立的执行，所以一个子请求的错误并不影响其它请求。如果任何一个请求失败，顶层的error标记将被设置为true，然后错误的细节将在
+相应的请求中被报告
+
+这些说明bulk请求不是原子操作——它们不能实现事务。每个请求操作时分开的，所以每个请求的成功与否不干扰其它操作。
+
+你可能在同一个index下的同一个type里批量索引日志数据。为每个文档指定相同的元数据是多余的。就像mget API，bulk请求也可以在URL中使用
+/_index或/_index/_type:
+POST /website/_bulk
+{ "index": { "_type": "log" }}
+{ "event": "User logged in" }
+你依旧可以覆盖元数据行的_index和_type，在没有覆盖时它会使用URL中的值作为默认值：
+POST /website/log/_bulk
+{ "index": {}}
+{ "event": "User logged in" }
+{ "index": { "_type": "blog" }}
+{ "title": "Overriding the default type" }
+
+试着批量索引标准的文档，随着大小的增长，当性能开始降低，说明你每个批次的大小太大了。开始的数量可以在1000~5000个文档之间，如果你的文档非常
+大，可以使用较小的批次。
+通常着眼于你请求批次的物理大小是非常有用的。一千个1kB的文档和一千个1MB的文档大不相同。一个好的批次最好保持在5-15MB大小间。

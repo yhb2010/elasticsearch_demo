@@ -1,0 +1,99 @@
+Elasticsearch 提供的另外一个近似度量就是 percentiles 百分位数度量。 百分位数展现某以具体百分比下观察到的数值。例如，第95个百分位上的数值，是高于
+95% 的数据总和。
+百分位数通常用来找出异常。在（统计学）的正态分布下，第 0.13 和 第 99.87 的百分位数代表与均值距离三倍标准差的值。任何处于三倍标准差之外的数据通常被认
+为是不寻常的，因为它与平均值相差太大。
+先准备数据：
+	put	/website
+	{
+	  "mappings": {
+	    "logs": {
+	      "properties": {
+	        "latency": {
+	          "type": "integer"
+	        },
+	        "zone":{
+	        	"type":"keyword"
+	        },
+	        "timestamp":{
+	        	"type":"date"
+	        }
+	      }
+	    }
+	  }
+	}
+	POST /website/logs/_bulk
+	{ "latency" : 100, "zone" : "US", "timestamp" : "2014-10-28" }
+	{ "latency" : 80, "zone" : "US", "timestamp" : "2014-10-29" }
+	{ "latency" : 99, "zone" : "US", "timestamp" : "2014-10-29" }
+	{ "latency" : 102, "zone" : "US", "timestamp" : "2014-10-28" }
+	{ "latency" : 75, "zone" : "US", "timestamp" : "2014-10-28" }
+	{ "latency" : 82, "zone" : "US", "timestamp" : "2014-10-29" }
+	{ "latency" : 100, "zone" : "EU", "timestamp" : "2014-10-28" }
+	{ "latency" : 280, "zone" : "EU", "timestamp" : "2014-10-29" }
+	{ "latency" : 155, "zone" : "EU", "timestamp" : "2014-10-29" }
+	{ "latency" : 623, "zone" : "EU", "timestamp" : "2014-10-28" }
+	{ "latency" : 380, "zone" : "EU", "timestamp" : "2014-10-28" }
+	{ "latency" : 319, "zone" : "EU", "timestamp" : "2014-10-29" }
+
+让我们对数据全集进行 百分位 操作以获得数据分布情况的直观感受：
+	GET /website/logs/_search
+	{
+	    "size" : 0,
+	    "aggs" : {
+	        "load_times" : {
+	            "percentiles" : {
+	                "field" : "latency" percentiles 度量被应用到 latency 延时字段。
+	            }
+	        },
+	        "avg_load_time" : {
+	            "avg" : {
+	                "field" : "latency" 为了比较，我们对相同字段使用 avg 度量。
+	            }
+	        }
+	    }
+	}
+它们表示了人们感兴趣的常用百分位数值，极端的百分位数在范围的两边，其他的一些处于中部。在返回的响应中，我们可以看到最小延时在 75ms 左右，而最大延时差不
+多有 600ms。与之形成对比的是，平均延时在 200ms 左右， 信息并不是很多：
+	...
+	"aggregations": {
+	  "load_times": {
+	     "values": {
+	        "1.0": 75.55,
+	        "5.0": 77.75,
+	        "25.0": 94.75,
+	        "50.0": 101,
+	        "75.0": 289.75,
+	        "95.0": 489.34999999999985,
+	        "99.0": 596.2700000000002
+	     }
+	  },
+	  "avg_load_time": {
+	     "value": 199.58333333333334
+	  }
+	}
+percentiles 度量告诉我们落在某个百分比以下的所有文档的最小值。例如，如果 50 百分位是 119ms，那么有 50% 的文档数值都不超过 119ms。
+所以显然延时的分布很广，让我们看看它们是否与数据中心的地理区域有关：
+	GET /website/logs/_search
+	{
+	    "size" : 0,
+	    "aggs" : {
+	        "zones" : {
+	            "terms" : {
+	                "field" : "zone"	首先根据区域我们将延时分到不同的桶中。
+	            },
+	            "aggs" : {
+	                "load_times" : {
+	                    "percentiles" : {	再计算每个区域的百分位数值。
+	                      "field" : "latency",
+	                      "percents" : [50, 95.0, 99.0]	percents 参数接受了我们想返回的一组百分位数，因为我们只对长的延时感兴趣。
+	                    }
+	                },
+	                "load_avg" : {
+	                    "avg" : {
+	                        "field" : "latency"
+	                    }
+	                }
+	            }
+	        }
+	    }
+	}

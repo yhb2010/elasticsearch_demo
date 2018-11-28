@@ -1,0 +1,16 @@
+恢复它就简单了：只要在你希望恢复回集群的快照 ID 后面加上 _restore 即可：
+	POST _snapshot/my_backup/snapshot_1/_restore
+
+	POST /_snapshot/my_backup/snapshot_1/_restore
+	{
+	    "indices": "index_1", 只恢复 index_1 索引，忽略快照中存在的其余索引。
+	    "rename_pattern": "index_(.+)", 查找所提供的模式能匹配上的正在恢复的索引。
+	    "rename_replacement": "restored_index_$1" 然后把它们重命名成替代的模式。
+	}
+和快照类似， restore 命令也会立刻返回，恢复进程会在后台进行。如果你更希望你的 HTTP 调用阻塞直到恢复完成，添加 wait_for_completion 标记。
+
+如果你想监控恢复的进度，你可以使用 recovery API。这个 API 可以为你在恢复的指定索引单独调用：
+	GET restored_index_3/_recovery
+
+要取消一个恢复，你需要删除正在恢复的索引。 因为恢复进程其实就是分片恢复，发送一个 删除索引 API 修改集群状态，就可以停止恢复进程。比如：
+	DELETE /restored_index_3

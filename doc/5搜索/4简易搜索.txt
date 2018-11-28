@@ -1,0 +1,31 @@
+查询字符串搜索对于在命令行下运行点对点(ad hoc)查询特别有用。例如这个语句查询所有类型为tweet并在tweet字段中包含elasticsearch字符的文档：
+GET /_all/tweet/_search?q=tweet:elasticsearch
+下一个语句查找name字段中包含"john"和tweet字段包含"mary"的结果。实际的查询只需要：
++name:john +tweet:mary
+"+"前缀表示语句匹配条件必须被满足。类似的"-"前缀表示条件必须不被满足。所有条件如果没有+或-表示是可选的
+
+_all字段
+返回包含"mary"字符的所有文档的简单搜索：
+GET /_search?q=mary
+在前一个例子中，我们搜索tweet或name字段中包含某个字符的结果。然而，这个语句返回的结果在三个不同的字段中包含"mary"：
+用户的名字是“Mary”
+“Mary”发的六个推文
+针对“@mary”的一个推文
+Elasticsearch是如何设法找到三个不同字段的结果的？
+当你索引一个文档，Elasticsearch把所有字符串字段值连接起来放在一个大字符串中，它被索引为一个特殊的字段_all。例如，当索引这个文档：
+{
+    "tweet":    "However did I manage before Elasticsearch?",
+    "date":     "2014-09-14",
+    "name":     "Mary Jones",
+    "user_id":  1
+}
+这好比我们增加了一个叫做_all的额外字段值：
+"However did I manage before Elasticsearch? 2014-09-14 Mary Jones 1"
+若没有指定字段，查询字符串搜索（即q=xxx）使用_all字段搜索。
+
+更复杂的语句
+下一个搜索推特的语句：
+name字段包含"mary"或"john"
+date晚于2014-09-10
+_all字段包含"aggregations"或"geo"
++name:(mary john) +date:>2014-09-10 +(aggregations geo)

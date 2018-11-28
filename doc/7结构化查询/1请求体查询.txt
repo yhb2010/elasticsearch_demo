@@ -1,0 +1,44 @@
+请求体查询
+空查询：
+我们以最简单的 search API开始，空查询将会返回索引中所有的文档。
+GET /_search
+
+你可以使用from及size参数进行分页：
+POST /megacorp/_search
+{
+  "from": 30,
+  "size": 10
+}
+
+结构化查询 Query DSL
+空查询 - {} - 在功能上等同于使用match_all查询子句，正如其名字一样，匹配所有的文档：
+GET /_search
+{
+    "query": {
+        "match_all": {}
+    }
+}
+例如，你可以使用match查询子句用来找寻在about字段中找寻包含like的成员：
+GET /megacorp/_search
+{
+    "query": {
+        "match": {
+            "about": "like"
+        }
+    }
+}
+
+合并多子句
+查询子句就像是搭积木一样，可以合并简单的子句为一个复杂的查询语句，比如：
+叶子子句(leaf clauses)(比如match子句)用以在将查询字符串与一个字段(或多字段)进行比较
+复合子句(compound)用以合并其他的子句。例如，bool子句允许你合并其他的合法子句，must，must_not或者should，如果可能的话：
+{
+    "query": {
+        "bool": {
+	        "must":     { "match": { "first_name": "Jane" }},
+	        "must_not": { "match": { "last_name":  "Smith" }},
+	        "should":   { "match": { "about": "like" }}
+	    }
+    }
+}
+复合子句能合并 任意其他查询子句，包括其他的复合子句。 这就意味着复合子句可以相互嵌套，从而实现非常复杂的逻辑。

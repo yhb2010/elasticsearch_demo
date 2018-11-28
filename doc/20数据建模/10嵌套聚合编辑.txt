@@ -1,0 +1,93 @@
+nested 聚合允许我们对嵌套对象里的字段进行聚合操作。
+GET /my_index/blogpost/_search
+{
+    "size":0,
+    "aggs":{
+        "comments":{	nested 聚合 “进入” 嵌套的 comments 对象。
+            "nested":{
+                "path":"comments"
+            },
+            "aggs":{
+                "by_month":{
+                    "date_histogram":{	comment对象根据 comments.date 字段的月份值被分到不同的桶。
+                        "field":"comments.date",
+                        "interval":"month",
+                        "format":"yyyy-MM"
+                    },
+                    "aggs":{
+                        "avg_stars":{
+                            "avg":{	计算每个桶内star的平均数量。
+                                "field":"comments.stars"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+nested 聚合 只能对嵌套文档的字段进行操作。 根文档或者其他嵌套文档的字段对它是不可见的。 然而，通过 reverse_nested 聚合，我们可以 走出 嵌套层级，回到
+父级文档进行操作。
+例如，我们要基于评论者的年龄找出评论者感兴趣 tags 的分布。 comment.age 是一个嵌套字段，但 tags 在根文档中：
+GET /my_index/blogpost/_search
+{
+    "size":0,
+    "aggs":{
+        "comments":{
+            "nested":{	nested 聚合进入 comments 对象。
+                "path":"comments"
+            },
+            "aggs":{
+                "age_group":{
+                    "histogram":{	histogram 聚合基于 comments.age 做分组，每10年一个分组。
+                        "field":"comments.age",
+                        "interval":10
+                    },
+                    "aggs":{
+                        "blogposts":{
+                            "reverse_nested":{	reverse_nested 聚合退回根文档
+
+                            },
+                            "aggs":{
+                                "tags":{
+                                    "terms":{	terms 聚合计算每个分组年龄段的评论者最常用的标签词。
+                                        "field":"tags"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+简略结果如下所示：
+..
+"aggregations": {
+  "comments": {
+     "doc_count": 4, 一共有4条评论。
+     "age_group": {
+        "buckets": [
+           {
+              "key": 20, 在20岁到30岁之间总共有两条评论。
+              "doc_count": 2,
+              "blogposts": {
+                 "doc_count": 2, 这些评论包含在两篇博客文章中。
+                 "tags": {
+                    "doc_count_error_upper_bound": 0,
+                    "buckets": [ 在这些博客文章中最热门的标签是 `shares`、 `cash`、`equities`。
+                       { "key": "shares",   "doc_count": 2 },
+                       { "key": "cash",     "doc_count": 1 },
+                       { "key": "equities", "doc_count": 1 }
+                    ]
+                 }
+              }
+           },
+
+嵌套对象 在只有一个主要实体时非常有用，这个主要实体包含有限个紧密关联但又不是很重要的实体，例如我们的 blogpost 对象包含评论对象。 在基于评论的内容查
+找博客文章时， nested 查询有很大的用处，并且可以提供更快的查询效率。
+嵌套模型的缺点如下：
+	当对嵌套文档做增加、修改或者删除时，整个文档都要重新被索引。嵌套文档越多，这带来的成本就越大。
+	查询结果返回的是整个文档，而不仅仅是匹配的嵌套文档。尽管目前有计划支持只返回根文档中最佳匹配的嵌套文档，但目前还不支持。

@@ -1,0 +1,32 @@
+我们想知道每个颜色的汽车制造商的分布：
+	GET /cars/transactions/_search
+	{
+	   "size" : 0,
+	   "aggs": {
+	      "colors": {
+	         "terms": {
+	            "field": "color"
+	         },
+	         "aggs": {
+	            "avg_price": {
+	               "avg": {
+	                  "field": "price"
+	               }
+	            },
+	            "make": {
+	                "terms": {
+	                    "field": "make"
+	                }
+	            }
+	         }
+	      }
+	   }
+	}
+
+首先，我们可能会观察到之前例子中的 avg_price 度量完全没有变化，还在原来的位置。 一个聚合的每个 层级 都可以有多个度量或桶， avg_price
+度量告诉我们每种颜色汽车的平均价格。它与其他的桶和度量相互独立。
+
+响应结果告诉我们以下几点：
+	红色车有四辆。
+	红色车的平均售价是 $32，500 美元。
+	其中三辆是 Honda 本田制造，一辆是 BMW 宝马制造。

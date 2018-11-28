@@ -1,0 +1,35 @@
+GET /_search
+{
+    "query": {
+        "bool": {
+            "must": {
+                "match": {								1
+                    "content": {
+                        "query":    "full text search",
+                        "operator": "and"
+                    }
+                }
+            },
+            "should": [
+                { "match": {
+                    "content": {
+                        "query": "Elasticsearch",
+                        "boost": 3						2
+                    }
+                }},
+                { "match": {
+                    "content": {
+                        "query": "Lucene",
+                        "boost": 2						3
+                    }
+                }}
+            ]
+        }
+    }
+}
+	1、这些语句使用默认的 boost 值 1 。
+	2、这条语句更为重要，因为它有最高的 boost 值。
+	3、这条语句比使用默认值的更重要，但它的重要性不及 Elasticsearch 语句。
+
+boost参数被用来提升一个语句的相对权重（ boost 值大于 1 ）或降低相对权重（ boost 值处于 0 到 1 之间），但是这种提升或降低并不是线性的，换句话说，
+如果一个boost值为 2 ，并不能获得两倍的评分 _score 。

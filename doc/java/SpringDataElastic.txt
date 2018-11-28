@@ -1,0 +1,233 @@
+https://es.yemengying.com/
+
+关键字				例子
+and					findByNameAndPrice
+or					findByNameOrPrice
+is					findByName
+not					findByNameNot
+between				findByPriceBetween
+lessThanEqual		findByPriceLessThan
+GreaterThanEqual	findByPriceGreaterThan
+before				findByPriceBefore
+after				findByPriceAfter
+like				findByNameLike
+containing			findByNameContaining
+in					findByNameIn(Collection names)
+true				findByAvailableTrue
+false				findByAvailableFalse
+orderBy				findByAvailableTrueOrderByNameDesc
+
+每一个对应的es rest：
+{
+    "bool":{
+        "must":[
+            {
+                "field":{
+                    "name":"?"
+                }
+            },
+            {
+                "field":{
+                    "price":"?"
+                }
+            }
+        ]
+    }
+}
+
+{
+    "bool":{
+        "should":[
+            {
+                "field":{
+                    "name":"?"
+                }
+            },
+            {
+                "field":{
+                    "price":"?"
+                }
+            }
+        ]
+    }
+}
+
+{
+    "bool":{
+        "must":[
+            {
+                "field":{
+                    "name":"?"
+                }
+            }
+        ]
+    }
+}
+
+{
+    "bool":{
+        "must_not":[
+            {
+                "field":{
+                    "name":"?"
+                }
+            }
+        ]
+    }
+}
+
+{
+    "bool":{
+        "must":[
+            {
+                "range":{
+                    "price":{
+                        "from":null,
+                        "to":"?",
+                        "include_lower":true,
+                        "include_upper":true
+                    }
+                }
+            }
+        ]
+    }
+}
+
+{
+    "bool":{
+        "must":[
+            {
+                "range":{
+                    "price":{
+                        "from":"?",
+                        "to":null,
+                        "include_lower":true,
+                        "include_upper":true
+                    }
+                }
+            }
+        ]
+    }
+}
+
+{
+    "bool":{
+        "must":[
+            {
+                "range":{
+                    "price":{
+                        "from":null,
+                        "to":"?",
+                        "include_lower":true,
+                        "include_upper":true
+                    }
+                }
+            }
+        ]
+    }
+}
+
+{
+    "bool":{
+        "must":[
+            {
+                "range":{
+                    "price":{
+                        "from":"?",
+                        "to":null,
+                        "include_lower":true,
+                        "include_upper":true
+                    }
+                }
+            }
+        ]
+    }
+}
+
+{
+    "bool":{
+        "must":[
+            {
+                "field":{
+                    "name":{
+                        "query":"?*",
+                        "analyze_wildcard":true
+                    }
+                }
+            }
+        ]
+    }
+}
+
+{
+    "bool":{
+        "must":[
+            {
+                "field":{
+                    "name":{
+                        "query":"?",
+                        "analyze_wildcard":true
+                    }
+                }
+            }
+        ]
+    }
+}
+
+{
+    "bool":{
+        "must":{
+            "bool":{
+                "should":[
+                    {
+                        "field":{
+                            "name":"?"
+                        }
+                    },
+                    {
+                        "field":{
+                            "name":"?"
+                        }
+                    }
+                ]
+            }
+        }
+    }
+}
+
+{
+    "bool":{
+        "must":{
+            "field":{
+                "available":true
+            }
+        }
+    }
+}
+
+{
+    "bool":{
+        "must":{
+            "field":{
+                "available":false
+            }
+        }
+    }
+}
+
+{
+    "sort":[
+        {
+            "name":{
+                "order":"desc"
+            }
+        }
+    ],
+    "bool":{
+        "must":{
+            "field":{
+                "available":true
+            }
+        }
+    }
+}

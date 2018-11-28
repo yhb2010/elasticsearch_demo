@@ -1,0 +1,13 @@
+可以将 n-gram 看成一个在词语上 滑动窗口 ， n 代表这个 “窗口” 的长度。如果我们要 n-gram quick 这个词 —— 它的结果取决于 n 的选择长度：
+	长度 1（unigram）： [ q, u, i, c, k ]
+	长度 2（bigram）： [ qu, ui, ic, ck ]
+	长度 3（trigram）： [ qui, uic, ick ]
+	长度 4（four-gram）： [ quic, uick ]
+	长度 5（five-gram）： [ quick ]
+朴素的 n-gram 对 词语内部的匹配 非常有用，即在 Ngram 匹配复合词 介绍的那样。但对于输入即搜索（search-as-you-type）这种应用场景，我们会使用一种特
+殊的 n-gram 称为 边界 n-grams （edge n-grams）。所谓的边界 n-gram 是说它会固定词语开始的一边，以单词 quick 为例，它的边界 n-gram 的结果为：
+	q
+	qu
+	qui
+	quic
+	quick

@@ -1,0 +1,41 @@
+通过时间来对 age 进行排序是有意义的，最大age 排在最前。
+GET /_search
+{
+    "query": {
+        "bool": {
+	        "should":   { "match": { "about": "like" }}
+	    }
+    },
+    "sort": { "age": { "order": "desc" }}
+}
+返回结果：
+_score 不被计算, 因为它并没有用于排序。
+age 字段的值通过 sort 字段的值进行返回。
+其次 _score 和 max_score 字段都是 null 。 计算 _score 的花销巨大，通常仅用于排序； 我们并不根据相关性排序，所以记录 _score 是没有意义的。
+如果无论如何你都要计算 _score ， 你可以将 track_scores 参数设置为 true 。
+
+假定我们想要结合使用 date 和 _score 进行查询，并且匹配的结果首先按照日期排序，然后按照相关性排序：
+GET /_search
+{
+    "query" : {
+        "bool" : {
+            "must":   { "match": { "tweet": "manage text search" }},
+            "filter" : { "term" : { "user_id" : 2 }}
+        }
+    },
+    "sort": [
+        { "date":   { "order": "desc" }},
+        { "_score": { "order": "desc" }}
+    ]
+}
+
+字段多值的排序
+一种情形是字段有多个值的排序， 需要记住这些值并没有固有的顺序；一个多值的字段仅仅是多个值的包装，这时应该选择哪个进行排序呢？
+对于数字或日期，你可以将多值字段减为单值，这可以通过使用 min 、 max 、 avg 或是 sum 排序模式 。 例如你可以按照每个 date 字段中的最早日期
+进行排序，通过以下方法：
+"sort": {
+    "dates": {
+        "order": "asc",
+        "mode":  "min"
+    }
+}

@@ -1,0 +1,32 @@
+前例中每条语句贡献三分之一评分的这种方式可能并不是我们想要的， 我们可能对title和author两条语句更感兴趣，这样就需要调整查询，使title
+和author语句相对来说更重要。
+在武器库中，最容易使用的就是boost参数。为了提升title和author字段的权重， 为它们分配的boost值大于 1：
+	GET /_search
+	{
+	  "query": {
+	    "bool": {
+	      "should": [
+	        { "match": {
+	            "title":  {
+	              "query": "War and Peace",
+	              "boost": 2
+	        }}},
+	        { "match": {
+	            "author":  {
+	              "query": "Leo Tolstoy",
+	              "boost": 2
+	        }}},
+	        { "bool":  {
+	            "should": [
+	              { "match": { "translator": "Constance Garnett" }},
+	              { "match": { "translator": "Louise Maude"      }}
+	            ]
+	        }}
+	      ]
+	    }
+	  }
+	}
+title和author语句的boost值为 2 。
+嵌套bool语句默认的boost值为 1 。
+要获取boost参数 “最佳” 值，较为简单的方式就是不断试错：设定boost值，运行测试查询，如此反复。boost值比较合理的区间处于1到10之间，
+当然也有可能是15。

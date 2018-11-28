@@ -1,0 +1,15 @@
+JSON
+ELasticsearch使用Javascript对象符号(JavaScript Object Notation)，也就是JSON，作为文档序列化格式。JSON现在已经被大多语言所支持，而且已经成为NoSQL
+领域的标准格式。它简洁、简单且容易阅读。
+以下使用JSON文档来表示一个用户对象：
+{
+    "email":      "john@smith.com",
+    "first_name": "John",
+    "last_name":  "Smith",
+    "info": {
+        "bio":         "Eco-warrior and defender of the weak",
+        "age":         25,
+        "interests": [ "dolphins", "whales" ]
+    },
+    "join_date": "2014/05/01"
+}

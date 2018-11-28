@@ -1,0 +1,79 @@
+第一步需要配置一个自定义的 edge_ngram token 过滤器，称为 autocomplete_filter ：
+	{
+	    "filter": {
+	        "autocomplete_filter": {
+	            "type":     "edge_ngram",
+	            "min_gram": 1,
+	            "max_gram": 20
+	        }
+	    }
+	}
+这个配置的意思是：对于这个 token 过滤器接收的任意词项，过滤器会为之生成一个最小固定值为 1 ，最大为 20 的 n-gram 。
+然后会在一个自定义分析器 autocomplete 中使用上面这个 token 过滤器：
+	{
+	    "analyzer": {
+	        "autocomplete": {
+	            "type":      "custom",
+	            "tokenizer": "standard",
+	            "filter": [
+	                "lowercase",
+	                "autocomplete_filter"
+	            ]
+	        }
+	    }
+	}
+自定义的edge-ngram token过滤器。这个分析器使用standard分词器将字符串拆分为独立的词，并且将它们都变成小写形式，然后为每个词生成一个边界 n-gram。
+完整示例如下：
+	PUT /my_index
+	{
+	    "settings": {
+	        "number_of_shards":1,
+	        "analysis": {
+	            "filter": {
+	                "autocomplete_filter": {
+	                    "type":     "edge_ngram",
+	                    "min_gram": 1,
+	                    "max_gram": 20
+	                }
+	            },
+	            "analyzer": {
+	                "autocomplete": {
+	                    "type":      "custom",
+	                    "tokenizer": "standard",
+	                    "filter": [
+	                        "lowercase",
+	                        "autocomplete_filter"
+	                    ]
+	                }
+	            }
+	        }
+	    }
+	}
+
+可以拿 analyze API 测试这个新的分析器确保它行为正确：
+	GET /my_index/_analyze?analyzer=autocomplete
+	quick brown
+结果表明分析器能正确工作，并返回以下词：
+	q
+	qu
+	qui
+	quic
+	quick
+	b
+	br
+	bro
+	brow
+	brown
+
+可以用 update-mapping API 将这个分析器应用到具体字段：
+	PUT /my_index/_mapping/my_type
+	{
+	    "my_type": {
+	        "properties": {
+	            "name": {
+	                "type":     "string",
+	                "analyzer": "autocomplete"
+	            }
+	        }
+	    }
+	}

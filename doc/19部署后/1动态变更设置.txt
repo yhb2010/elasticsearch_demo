@@ -1,0 +1,17 @@
+Elasticsearch 里很多设置都是动态的，可以通过 API 修改。需要强制重启节点（或者集群）的配置修改都要极力避免。 而且虽然通过静态配置项也可以完成这些
+变更，我们建议你还是用 API 来实现。
+集群更新 API 有两种工作模式：
+	临时（Transient）
+	这些变更在集群重启之前一直会生效。一旦整个集群重启，这些配置就被清除。
+	永久（Persistent）
+	这些变更会永久存在直到被显式修改。即使全集群重启它们也会存活下来并覆盖掉静态配置文件里的选项。
+
+	PUT /_cluster/settings
+	{
+	    "persistent" : {
+	        "discovery.zen.minimum_master_nodes" : 2
+	    },
+	    "transient" : {
+	        "indices.store.throttle.max_bytes_per_sec" : "50mb"
+	    }
+	}

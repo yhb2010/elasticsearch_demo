@@ -1,0 +1,63 @@
+这种情况下，我们需要 bool （布尔）过滤器。 这是个 复合过滤器（compound filter） ，它可以接受多个其他过滤器作为参数，并将这些过滤器结合成各式各样的
+布尔（逻辑）组合。
+
+一个 bool 过滤器由三部分组成：
+	{
+	   "bool" : {
+	      "must" :     [],
+	      "should" :   [],
+	      "must_not" : [],
+	   }
+	}
+must
+	所有的语句都 必须（must） 匹配，与AND等价。
+must_not
+	所有的语句都 不能（must not） 匹配，与NOT等价。
+should
+	至少有一个语句要匹配，与OR等价。
+
+GET /my_store/products/_search
+{
+   "query" : {
+      "constant_score" : {
+         "filter" : {
+            "bool" : {
+              "should" : [
+                 { "term" : {"price" : 20}},
+                 { "term" : {"productID" : "XHDK-A-1293-#fJ3"}}
+              ],
+              "must_not" : {
+                 "term" : {"price" : 30}
+              }
+           }
+         }
+      }
+   }
+}
+对应sql：WHERE  (price = 20 OR productID = "XHDK-A-1293-#fJ3")
+  AND  (price != 30)
+
+嵌套布尔过滤器:
+GET /my_store/products/_search
+{
+   "query" : {
+      "constant_score" : {
+         "filter" : {
+            "bool" : {
+              "should" : [
+                { "term" : {"productID" : "KDKE-B-9947-#kL5"}},
+                { "bool" : {
+                  "must" : [
+                    { "term" : {"productID" : "JODL-X-1937-#pV7"}},
+                    { "term" : {"price" : 30}}
+                  ]
+                }}
+              ]
+           }
+         }
+      }
+   }
+}
+对应sql：WHERE  productID      = "KDKE-B-9947-#kL5"
+  OR (     productID = "JODL-X-1937-#pV7"
+       AND price     = 30 )

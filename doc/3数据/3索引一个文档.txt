@@ -1,0 +1,38 @@
+索引一个文档
+文档通过index API被索引——使数据可以被存储和搜索。但是首先我们需要决定文档所在。正如我们讨论的，文档通过其_index、_type、_id唯一确定。
+
+使用自己的ID：
+PUT /website/blog/123
+{
+  "title": "My first blog entry",
+  "text":  "Just trying this out...",
+  "date":  "2014/01/01"
+}
+Elasticsearch的响应：
+{
+   "_index":    "website",
+   "_type":     "blog",
+   "_id":       "123",
+   "_version":  1,
+   "created":   true
+}
+响应指出请求的索引已经被成功创建，这个索引中包含_index、_type和_id元数据，以及一个新元素：_version。
+Elasticsearch中每个文档都有版本号，每当文档变化（包括删除）都会使_version增加。
+
+自增ID：
+URL现在只包含_index和_type两个字段：
+POST /website/blog/
+{
+  "title": "My second blog entry",
+  "text":  "Still trying this out...",
+  "date":  "2014/01/01"
+}
+响应内容与刚才类似，只有_id字段变成了自动生成的值：
+{
+   "_index":    "website",
+   "_type":     "blog",
+   "_id":       "wM0OSFhDQXGZAWDf0-drSA",
+   "_version":  1,
+   "created":   true
+}
+自动生成的ID有22个字符长，URL-safe, Base64-encoded string universally unique identifiers, 或者叫 UUIDs。

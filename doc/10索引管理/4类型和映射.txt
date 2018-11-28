@@ -1,0 +1,79 @@
+类型 在 Elasticsearch 中表示一类相似的文档。 类型由 名称 比如 user 或 blogpost 和 映射 组成。
+
+（在elasticsearch6中，一个索引下只能有一个类型）
+这导致了一个有趣的思想实验： 如果有两个不同的类型，每个类型都有同名的字段，但映射不同（例如：一个是字符串一个是数字），将会出现什么情况？
+简单回答是，Elasticsearch 不会允许你定义这个映射。当你配置这个映射时，将会出现异常。
+详细回答是，每个 Lucene 索引中的所有字段都包含一个单一的、扁平的模式。一个特定字段可以映射成 string 类型也可以是 number 类型，但是不能两者兼具。因
+为类型是 Elasticsearch 添加的 优于 Lucene 的额外机制（以元数据 _type 字段的形式），在 Elasticsearch 中的所有类型最终都共享相同的映射。
+以 data 索引中两种类型的映射为例：
+{
+   "data": {
+      "mappings": {
+         "people": {
+            "properties": {
+               "name": {
+                  "type": "string",
+               },
+               "address": {
+                  "type": "string"
+               }
+            }
+         },
+         "transactions": {
+            "properties": {
+               "timestamp": {
+                  "type": "date",
+                  "format": "strict_date_optional_time"
+               },
+               "message": {
+                  "type": "string"
+               }
+            }
+         }
+      }
+   }
+}
+每个类型定义两个字段 (分别是 "name"/"address" 和 "timestamp"/"message" )。它们看起来是相互独立的，但在后台 Lucene 将创建一个映射，如:
+{
+   "data": {
+      "mappings": {
+        "_type": {
+          "type": "string",
+          "index": "not_analyzed"
+        },
+        "name": {
+          "type": "string"
+        }
+        "address": {
+          "type": "string"
+        }
+        "timestamp": {
+          "type": "long"
+        }
+        "message": {
+          "type": "string"
+        }
+      }
+   }
+}
+注: 这不是真实有效的映射语法，只是用于演示
+对于整个索引，映射在本质上被 扁平化 成一个单一的、全局的模式。这就是为什么两个类型不能定义冲突的字段：当映射被扁平化时，Lucene 不知道如何去处理。
+
+类型结论
+那么，这个讨论的结论是什么？技术上讲，多个类型可以在相同的索引中存在，只要它们的字段不冲突（要么因为字段是互为独占模式，要么因为它们共享相同的字段）。
+重要的一点是: 类型可以很好的区分同一个集合中的不同细分。在不同的细分中数据的整体模式是相同的（或相似的）。
+类型不适合 完全不同类型的数据 。如果两个类型的字段集是互不相同的，这就意味着索引中将有一半的数据是空的（字段将是 稀疏的 ），最终将导致性能问题。在这种
+情况下，最好是使用两个单独的索引。
+总结：
+正确: 将 kitchen 和 lawn-care 类型放在 products 索引中, 因为这两种类型基本上是相同的模式
+错误: 将 products 和 logs 类型放在 data 索引中, 因为这两种类型互不相同。应该将它们放在不同的索引中。
+
+字段类型
+	string	字符串
+	integer	数字
+	long	A long value(64bit)
+	float	A floating-point number(32bit):such as 1,2,3,4
+	double	A floating-poing number(64bit)
+	bool	A bool value,such as True,False
+	date	such as:2017-02-20
+	binary	二进制

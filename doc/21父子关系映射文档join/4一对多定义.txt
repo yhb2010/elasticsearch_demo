@@ -1,0 +1,16 @@
+一对多定义
+如下，一个父文档question与多个子文档answer，comment的映射定义。
+	PUT /join_ext_index
+	{
+	  "mappings": {
+	    "_doc": {
+	      "properties": {
+	        "my_join_field": {
+	          "type": "join",
+	          "relations": {
+	            "question": ["answer", "comment"]
+	          }
+	        }
+	      }
+	    }
+	  }

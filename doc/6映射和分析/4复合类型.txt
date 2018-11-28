@@ -1,0 +1,65 @@
+多值字段
+我们想让tag字段包含多个字段，这非常有可能发生。我们可以索引一个标签数组来代替单一字符串：
+{ "tag": [ "search", "nosql" ]}
+对于数组不需要特殊的映射。任何一个字段可以包含零个、一个或多个值，同样对于全文字段将被分析并产生多个词。
+言外之意，这意味着数组中所有值必须为同一类型。你不能把日期和字符窜混合。如果你创建一个新字段，这个字段索引了一个数组，Elasticsearch将使
+用第一个值的类型来确定这个新字段的类型。
+当你从Elasticsearch中取回一个文档，任何一个数组的顺序和你索引它们的顺序一致。
+数组是做为多值字段被索引的，它们没有顺序。在搜索阶段你不能指定“第一个值”或者“最后一个值”。
+
+空字段
+当然数组可以是空的。这等价于有零个值。事实上，Lucene没法存放null值，所以一个null值的字段被认为是空字段。
+这四个字段将被识别为空字段而不被索引：
+"empty_string":             "",
+"null_value":               null,
+"empty_array":              [],
+"array_with_null_value":    [ null ]
+
+多层对象
+我们需要讨论的最后一个自然JSON数据类型是对象(object)，内部对象(inner objects)经常用于在另一个对象中嵌入一个实体或对象。
+put	/product/_mapping/book
+{
+  "properties" : {
+    "address" : {
+      "type": "object",
+      "properties": {
+      	"num": {
+      		"type": "integer"
+      	},
+      	"area":{
+      		"type": "text",
+      		"analyzer": "ik_smart"
+      	}
+      }
+    }
+  }
+}
+Lucene 并不了解内部对象。 一个 Lucene 文件包含一个键-值对应的扁平表单。 为了让 Elasticsearch 可以有效的索引内部对象，将文件转换为以下
+格式：
+{
+    "tweet":            [elasticsearch, flexible, very],
+    "user.id":          [@johnsmith],
+    "user.gender":      [male],
+    "user.age":         [26],
+    "user.name.full":   [john, smith],
+    "user.name.first":  [john],
+    "user.name.last":   [smith]
+}
+内部栏位可被归类至name，例如"first"。 为了区别两个拥有相同名字的栏位，我们可以使用完整路径，例如"user.name.first" 或甚至类型名称加上路
+径："tweet.user.name.first"。
+注意： 在以上扁平化文件中，并没有栏位叫作user也没有栏位叫作user.name。 Lucene 只索引阶层或简单的值，而不会索引复杂的资料结构。
+
+最后，一个包含内部对象的数组如何索引。 我们有个数组如下所示：
+{
+    "followers": [
+        { "age": 35, "name": "Mary White"},
+        { "age": 26, "name": "Alex Jones"},
+        { "age": 19, "name": "Lisa Smith"}
+    ]
+}
+此文件会如我们以上所说的被扁平化，但其结果会像如此：
+{
+    "followers.age":    [19, 26, 35],
+    "followers.name":   [alex, jones, lisa, smith, mary, white]
+}
+{age: 35}与{name: Mary White}之间的关联会消失，因每个多值的栏位会变成一个值集合，而非有序的阵列。

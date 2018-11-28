@@ -1,0 +1,23 @@
+通常我们想要控制一些新建索引的设置（settings）和映射（mappings）。也许我们想要限制分片数为 1 ，并且禁用 _all 域。 索引模板可以用于控制何种设置
+（settings）应当被应用于新创建的索引：
+	PUT /_template/my_logs	创建一个名为 my_logs 的模板。
+	{
+	  "template": "logstash-*",	将这个模板应用于所有以 logstash- 为起始的索引。
+	  "order":    1,	这个模板将会覆盖默认的 logstash 模板，因为默认模板的 order 更低。
+	  "settings": {
+	    "number_of_shards": 1	限制主分片数量为 1 。
+	  },
+	  "mappings": {
+	    "_default_": {	为所有类型禁用 _all 域。
+	      "_all": {
+	        "enabled": false
+	      }
+	    }
+	  },
+	  "aliases": {
+	    "last_3_months": {}	添加这个索引至 last_3_months 别名中。
+	  }
+	}
+这个模板指定了所有名字以 logstash- 为起始的索引的默认设置，不论它是手动还是自动创建的。 如果我们认为明天的索引需要比今天更大的容量，我们可以更新这个
+索引以使用更多的分片。
+这个模板还将新建索引添加至了 last_3_months 别名中，然而从那个别名中删除旧的索引则需要手动执行。

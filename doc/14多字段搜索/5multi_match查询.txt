@@ -1,0 +1,56 @@
+multi_match查询为能在多个字段上反复执行相同查询提供了一种便捷方式。
+默认情况下，查询的类型是best_fields， 这表示它会为每个字段生成一 match查询，然后将它们组合到dis_max查询的内部，如下：
+	{
+	    "query": {
+		    "dis_max":{
+		        "queries":[
+		            {
+		                "match":{
+		                    "title":{
+		                        "query":"Quick brown fox",
+		                        "minimum_should_match":"30%"
+		                    }
+		                }
+		            },
+		            {
+		                "match":{
+		                    "body":{
+		                        "query":"Quick brown fox",
+		                        "minimum_should_match":"30%"
+		                    }
+		                }
+		            }
+		        ],
+		        "tie_breaker":0.3
+		    }
+		}
+	}
+上面这个查询用 multi_match 重写成更简洁的形式：
+	{
+	    "multi_match": {
+	        "query":                "Quick brown fox",
+	        "type":                 "best_fields",				1
+	        "fields":               [ "title", "body" ],
+	        "tie_breaker":          0.3,
+	        "minimum_should_match": "30%"						2
+	    }
+	}
+	1、best_fields 类型是默认值，可以不指定，还可以是most_fields。
+	2、如 minimum_should_match 或 operator 这样的参数会被传递到生成的 match 查询中。
+
+字段名称可以用模糊匹配的方式给出。
+	{
+	    "multi_match": {
+	        "query":  "Quick brown fox",
+	        "fields": "*_title"
+	    }
+	}
+
+可以使用 ^ 字符语法为单个字段提升权重，在字段名称的末尾添加 ^boost ， 其中 boost 是一个浮点数：
+	{
+	    "multi_match": {
+	        "query":  "Quick brown fox",
+	        "fields": [ "*_title", "chapter_title^2" ]
+	    }
+	}
+	chapter_title 这个字段的 boost 值为 2 ，而其他两个字段 book_title 和 section_title 字段的默认 boost 值为 1 。

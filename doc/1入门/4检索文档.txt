@@ -1,0 +1,94 @@
+现在Elasticsearch中已经存储了一些数据，我们可以根据业务需求开始工作了。第一个需求是能够检索单个员工的信息。
+这对于Elasticsearch来说非常简单。我们只要执行HTTP GET请求并指出文档的“地址”——索引、类型和ID既可。根据这三部分信息，我们就可以返回原始
+JSON文档：
+GET /megacorp/employee/1
+
+我们通过HTTP方法GET来检索文档，同样的，我们可以使用DELETE方法删除文档，使用HEAD方法检查某文档是否存在。如果想更新已存在的文档，我们只需
+再PUT一次。
+简单搜索：
+GET请求非常简单——你能轻松获取你想要的文档。让我们来进一步尝试一些东西，比如简单的搜索！
+我们尝试一个最简单的搜索全部员工的请求：
+GET /megacorp/employee/_search
+你可以看到我们依然使用megacorp索引和employee类型，但是我们在结尾使用关键字_search来取代原来的文档ID。响应内容的hits数组中包含了我们所有
+的三个文档。默认情况下搜索会返回前10个结果。
+
+接下来，让我们搜索姓氏中包含“Smith”的员工。要做到这一点，我们将在命令行中使用轻量级的搜索方法。这种方法常被称作查询字符串(query string)
+搜索，因为我们像传递URL参数一样去传递查询语句：
+GET /megacorp/employee/_search?q=last_name:Smith
+
+使用DSL语句查询：
+DSL(Domain Specific Language特定领域语言)以JSON请求体的形式出现。我们可以这样表示之前关于“Smith”的查询:
+POST /megacorp/employee/_search
+{
+    "query" : {
+        "match" : {
+            "last_name" : "Smith"
+        }
+    }
+}
+
+更复杂的搜索：
+我们让搜索稍微再变的复杂一些。我们依旧想要找到姓氏为“Smith”的员工，但是我们只想得到年龄大于30岁的员工。我们的语句将添加过滤器(filter),
+它使得我们高效率的执行一个结构化搜索：
+POST /megacorp/employee/_search
+{
+    "query" : {
+        "bool" : {
+            "filter" : {
+                "range" : {
+                    "age" : { "gt" : 30 }
+                }
+            },
+            "must" : [
+            	{
+            		"match":{
+            			"last_name" : "Smith"
+            		}
+            	}
+	        ]
+        }
+    }
+}
+filter要结合bool使用，而且有缓存，效率比query快一些。
+<1> 这部分查询属于区间过滤器(range filter),它用于查找所有年龄大于30岁的数据——gt为"greater than"的缩写。
+<2> 这部分查询与之前的match语句(query)一致。
+
+全文搜索：
+到目前为止搜索都很简单：搜索特定的名字，通过年龄筛选。让我们尝试一种更高级的搜索，全文搜索——一种传统数据库很难实现的功能。
+我们将会搜索所有喜欢“rock climbing”的员工：
+POST /megacorp/employee/_search
+{
+    "query" : {
+        "match" : {
+            "about" : "rock climbing"
+        }
+    }
+}
+默认情况下，Elasticsearch根据结果相关性评分来对结果集进行排序，所谓的「结果相关性评分」就是文档与查询条件的匹配程度。
+这个例子很好的解释了Elasticsearch如何在各种文本字段中进行全文搜索，并且返回相关性最大的结果集。相关性(relevance)的概念在Elasticsearch
+中非常重要，而这个概念在传统关系型数据库中是不可想象的，因为传统数据库对记录的查询只有匹配或者不匹配。
+
+短语搜索：
+目前我们可以在字段中搜索单独的一个词，这挺好的，但是有时候你想要确切的匹配若干个单词或者短语(phrases)。例如我们想要查询同时包含"rock"和
+"climbing"（并且是相邻的）的员工记录。
+要做到这个，我们只要将match查询变更为match_phrase查询即可。
+
+高亮我们的搜索：
+很多应用喜欢从每个搜索结果中高亮(highlight)匹配到的关键字，这样用户可以知道为什么这些文档和查询相匹配。在Elasticsearch中高亮片段是非常容
+易的。
+让我们在之前的语句上增加highlight参数：
+POST /megacorp/employee/_search
+{
+    "query" : {
+        "match_phrase" : {
+            "about" : "rock climbing"
+        }
+    },
+    "highlight": {
+        "fields" : {
+            "about" : {}
+        }
+    }
+}
+当我们运行这个语句时，会命中与之前相同的结果，但是在返回结果中会有一个新的部分叫做highlight，这里包含了来自about字段中的文本，并且用
+<em></em>来标识匹配到的单词。

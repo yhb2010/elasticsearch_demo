@@ -1,0 +1,34 @@
+例如，如果用户输入 johnnie walker bl，我们希望在它们完成输入搜索条件前就能得到：Johnnie Walker Black Label和Johnnie Walker Blue Label。
+{
+    "match_phrase_prefix" : {
+        "brand" : "johnnie walker bl"
+    }
+}
+这种查询的行为与 match_phrase 查询一致，不同的是它将查询字符串的最后一个词作为前缀使用，换句话说，可以将之前的例子看成如下这样：
+	1、johnnie
+	2、跟着 walker
+	3、跟着以 bl 开始的词
+如果通过 validate-query API 运行这个查询查询，explanation 的解释结果为：
+"johnnie walker bl*"
+
+与 match_phrase 一样，它也可以接受 slop 参数（参照 slop ）让相对词序位置不那么严格：
+{
+    "match_phrase_prefix" : {
+        "brand" : {
+            "query": "walker johnnie bl",
+            "slop":  10
+        }
+    }
+}
+
+通过设置 max_expansions 参数来限制前缀扩展的影响， 一个合理的值是可能是 50 ：
+{
+    "match_phrase_prefix" : {
+        "brand" : {
+            "query":          "johnnie walker bl",
+            "max_expansions": 50
+        }
+    }
+}
+参数 max_expansions 控制着可以与前缀匹配的词的数量，它会先查找第一个与前缀 bl 匹配的词，然后依次查找搜集与之匹配的词（按字母顺序），直到没有更多可
+匹配的词或当数量超过 max_expansions 时结束。

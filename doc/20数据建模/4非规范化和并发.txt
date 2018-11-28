@@ -1,0 +1,116 @@
+如果用户改变了他的名字，他所有的博客文章也需要更新了。幸运的是，用户不经常更改名称。即使他们做了， 用户也不可能写超过几千篇博客文章，所以更新博客文章
+通过 scroll 和 bulk APIs 大概耗费不到一秒。
+
+在这个例子中，我们将在 Elasticsearch 模拟一个文件系统的目录树，非常类似 Linux 文件系统：根目录是 / ，每个目录可以包含文件和子目录。
+
+我们希望能够搜索到一个特定目录下的文件，等效于：
+grep "some text" /clinton/projects/elasticsearch/*
+这就要求我们索引文件所在目录的路径：
+	PUT /fs/file/1
+	{
+	  "name":     "README.txt", 文件名
+	  "path":     "/clinton/projects/elasticsearch", 文件所在目录的全路径
+	  "contents": "Starting a new Elasticsearch project is easy..."
+	}
+
+我们也希望能够搜索到一个特定目录下的目录树包含的的任何文件，相当于此：
+grep -r "some text" /clinton
+为了支持这一点，我们需要对路径层次结构进行索引：
+	/clinton
+	/clinton/projects
+	/clinton/projects/elasticsearch
+这种层次结构能够通过 path 字段使用 path_hierarchy tokenizer 自动生成：
+	PUT /fs
+	{
+	    "settings":{
+	        "analysis":{
+	            "analyzer":{
+	                "paths":{	自定义的 paths 分析器在默认设置中使用 path_hierarchy tokenizer。
+	                    "tokenizer":"path_hierarchy"
+	                }
+	            }
+	        }
+	    }
+	}
+
+file 类型的映射看起来如下所示：
+	PUT /fs/_mapping/file
+	{
+	    "properties":{
+	        "name":{
+	            "type":"keyword",
+	            "index":"true"
+	        },
+	        "path":{
+	            "type":"keyword",
+	            "index":"true",
+	            "fields":{
+	                "tree":{
+	                    "type":"text",
+	                    "analyzer":"paths"
+	                }
+	            }
+	        }
+	    }
+	}
+
+一旦索引建立并且文件已被编入索引，我们可以执行一个搜索，在 /clinton/projects/elasticsearch 目录中包含 elasticsearch 的文件，如下所示：
+	GET /fs/file/_search
+	{
+	    "query":{
+	        "constant_score":{
+	            "filter":{
+	                "bool":{
+	                    "must":[
+	                        {
+	                            "term":{
+	                                "path":"/clinton/projects/elasticsearch"
+	                            }
+	                        },
+	                        {
+	                            "term":{
+	                                "contents":"elasticsearch"
+	                            }
+	                        }
+	                    ]
+	                }
+	            }
+	        }
+	    }
+	}
+
+所有在 /clinton 下面的任何子目录存放的文件将在 path.tree 字段中包含/clinton词项。所以我们能够搜索/clinton的任何子目录中的所有文件，如下所示：
+	GET /fs/file/_search
+	{
+	    "query":{
+	        "constant_score":{
+	            "filter":{
+	                "bool":{
+	                    "must":[
+	                        {
+	                            "term":{
+	                                "path.tree":"/clinton"
+	                            }
+	                        },
+	                        {
+	                            "term":{
+	                                "contents":"elasticsearch"
+	                            }
+	                        }
+	                    ]
+	                }
+	            }
+	        }
+	    }
+	}
+
+重命名文件和目录：
+到目前为止一切顺利。 重命名一个文件很容易--所需要的只是一个简单的 update 或 index 请求。
+	PUT /fs/file/1?version=2 version编号确保该更改仅应用于该索引中具有此相同的版本号的文档。
+	{
+	  "name":     "README.asciidoc",
+	  "path":     "/clinton/projects/elasticsearch",
+	  "contents": "Starting a new Elasticsearch project is easy..."
+	}
+我们甚至可以重命名一个目录，但这意味着更新所有存在于该目录下路径层次结构中的所有文件。 这可能快速或缓慢，取决于有多少文件需要更新。我们所需要做的
+就是使用 scroll 来检索所有的文件， 以及 bulk API 来更新它们。这个过程不是原子的，但是所有的文件将会迅速转移到他们的新存放位置。

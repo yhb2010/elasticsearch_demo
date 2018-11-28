@@ -1,0 +1,38 @@
+验证查询是否合法：
+POST	/megacorp/_validate/query
+返回
+{
+    "valid": true,
+    "_shards": {
+        "total": 1,
+        "successful": 1,
+        "failed": 0
+    }
+}
+
+对于合法查询，使用 explain 参数将返回可读的描述，这对准确理解 Elasticsearch 是如何解析你的 query 是非常有用的：
+POST	/megacorp/_validate/query?explain
+{
+    "query": {
+        "bool": {
+	        "must":     { "match": { "first_name": "Jane" }},
+	        "should":   { "match": { "about": "like" }}
+	    }
+    }
+}
+返回：
+{
+    "valid": true,
+    "_shards": {
+        "total": 1,
+        "successful": 1,
+        "failed": 0
+    },
+    "explanations": [
+        {
+            "index": "megacorp",
+            "valid": true,
+            "explanation": "+first_name:jane about:like"
+        }
+    ]
+}

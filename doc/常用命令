@@ -1,0 +1,59 @@
+https://elasticsearch.cn/book/elasticsearch_definitive_guide_2.x/index.html《es权威指南》
+https://www.elastic.co/guide/en/elasticsearch/reference/6.3/index.html
+
+2、查看集群是否健康
+http://IP:9200/_cat/health?v
+3、查看节点列表
+http://IP:9200/_cat/nodes?v
+4、列出所有索引及存储大小
+http://IP:9200/_cat/indices?v
+5、创建索引
+创建索引名为qz,默认会有5个分片，1个索引
+PUT qz?pretty
+6、添加一个类型
+PUT qz/external/2?pretty' -d
+{
+   "gwyy": "John"
+}
+
+删除索引：
+	delete	/my_index
+给索引创建一个分析器
+	put	/fs
+	{
+	    "settings":{
+	        "analysis":{
+	            "analyzer":{
+	                "paths":{
+	                    "tokenizer":"path_hierarchy"
+	                }
+	            }
+	        }
+	    }
+	}
+给存在索引加映射
+	PUT /fs/_mapping/file
+	{
+	    "properties":{
+	        "name":{
+	            "type":"keyword",
+	            "index":"true"
+	        },
+	        "contents":{
+	        	"type":"text",
+	            "index":"true"
+	        },
+	        "path":{
+	            "type":"keyword",
+	            "index":"true",
+	            "fields":{
+	                "tree":{
+	                    "type":"text",
+	                    "analyzer":"paths"
+	                }
+	            }
+	        }
+	    }
+	}
+查看索引结构：
+	get	/fs/_mapping/file

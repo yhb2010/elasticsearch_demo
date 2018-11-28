@@ -1,0 +1,63 @@
+Elasticsearch 提供的首个近似聚合是 cardinality （注：基数）度量。 它提供一个字段的基数，即该字段的 distinct或者 unique值的数目。 你可能会对SQL
+形式比较熟悉：
+	SELECT COUNT(DISTINCT color)
+	FROM cars
+去重是一个很常见的操作，可以回答很多基本的业务问题：
+	网站独立访客是多少？
+	卖了多少种汽车？
+	每月有多少独立用户购买了商品？
+
+我们可以用 cardinality 度量确定经销商销售汽车颜色的数量：
+	GET /cars/transactions/_search
+	{
+	    "size" : 0,
+	    "aggs" : {
+	        "distinct_colors" : {
+	            "cardinality" : {
+	              "field" : "color"
+	            }
+	        }
+	    }
+	}
+每月有多少颜色的车被售出？为了得到这个度量，我们只需要将一个 cardinality 度量嵌入一个 date_histogram ：
+	GET /cars/transactions/_search
+	{
+	  "size" : 0,
+	  "aggs" : {
+	      "months" : {
+	        "date_histogram": {
+	          "field": "sold",
+	          "interval": "month"
+	        },
+	        "aggs": {
+	          "distinct_colors" : {
+	              "cardinality" : {
+	                "field" : "color"
+	              }
+	          }
+	        }
+	      }
+	  }
+	}
+
+cardinality度量是一个近似算法。 它是基 HyperLogLog++（HLL）算法的。 我们最好应该关注一下这个算法的 特性 ：
+	可配置的精度，用来控制内存的使用（更精确 ＝ 更多内存）。
+	小的数据集精度是非常高的。
+	我们可以通过配置参数，来设置去重需要的固定内存使用量。无论数千还是数十亿的唯一值，内存使用量只与你配置的精确度相关。
+要配置精度，我们必须指定 precision_threshold 参数的值。 这个阈值定义了在何种基数水平下我们希望得到一个近乎精确的结果。参考以下示例：
+	GET /cars/transactions/_search
+	{
+	    "size" : 0,
+	    "aggs" : {
+	        "distinct_colors" : {
+	            "cardinality" : {
+	              "field" : "color",
+	              "precision_threshold" : 100 接受 0–40,000 之间的数字，更大的值还是会被当作 40,000 来处理。
+	            }
+	        }
+	    }
+	}
+示例会确保当字段唯一值在 100 以内时会得到非常准确的结果。尽管算法是无法保证这点的，但如果基数在阈值以下，几乎总是 100% 正确的。高于阈值的基数会开始节
+省内存而牺牲准确度，同时也会对度量结果带入误差。
+对于指定的阈值，HLL 的数据结构会大概使用 precision_threshold * 8 字节的内存，所以就必须在牺牲内存和获得额外的准确度间做平衡。
+在实际应用中， 100 的阈值可以在唯一值为百万的情况下仍然将误差维持 5% 以内。

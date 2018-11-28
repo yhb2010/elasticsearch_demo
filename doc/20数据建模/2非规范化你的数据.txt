@@ -1,0 +1,30 @@
+如果我们希望能够通过某个用户姓名找到他写的博客文章，可以在博客文档中包含这个用户的姓名：
+	PUT /my_index/user/1
+	{
+	  "name":     "John Smith",
+	  "email":    "john@smith.com",
+	  "dob":      "1970/10/24"
+	}
+	PUT /my_index/blogpost/2
+	{
+	  "title":    "Relationships",
+	  "body":     "It's complicated...",
+	  "user":     {
+	    "id":       1,
+	    "name":     "John Smith"
+	  }
+	}
+
+现在，我们通过单次查询就能够通过 relationships 找到用户 John 的博客文章。
+	GET /my_index/blogpost/_search
+	{
+	  "query": {
+	    "bool": {
+	      "must": [
+	        { "match": { "title":     "relationships" }},
+	        { "match": { "user.name": "John"          }}
+	      ]
+	    }
+	  }
+	}
+数据非规范化的优点是速度快。因为每个文档都包含了所需的所有信息，当这些信息需要在查询进行匹配时，并不需要进行昂贵的联接操作。

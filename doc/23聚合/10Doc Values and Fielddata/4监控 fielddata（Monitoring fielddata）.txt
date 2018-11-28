@@ -1,0 +1,13 @@
+高的回收数可以预示严重的资源问题以及性能不佳的原因。
+
+Fielddata 的使用可以被监控：
+
+按索引使用 indices-stats API ：
+
+GET /_stats/fielddata?fields=*
+按节点使用 nodes-stats API ：
+
+GET /_nodes/stats/indices/fielddata?fields=*
+按索引节点：
+GET /_nodes/stats/indices/fielddata?level=indices&fields=*
+使用设置 ?fields=* ，可以将内存使用分配到每个字段。

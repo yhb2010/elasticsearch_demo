@@ -1,0 +1,25 @@
+我们可以给人名添加一个自定义 _all 字段，再为地址添加另一个 _all 字段。
+Elasticsearch 在字段映射中为我们提供 copy_to 参数来实现这个功能：
+	PUT /my_index
+	{
+	    "mappings": {
+	        "person": {
+	            "properties": {
+	                "first_name": {
+	                    "type":     "string",
+	                    "copy_to":  "full_name"			1
+	                },
+	                "last_name": {
+	                    "type":     "string",
+	                    "copy_to":  "full_name"			2
+	                },
+	                "full_name": {
+	                    "type":     "string"
+	                }
+	            }
+	        }
+	    }
+	}
+	1、2：first_name 和 last_name 字段中的值会被复制到 full_name 字段。
+
+有了这个映射，我们可以用 first_name 来查询名，用 last_name 来查询姓，或者直接使用 full_name 查询整个姓名。

@@ -1,0 +1,50 @@
+使用 dynamic_templates ，你可以完全控制新检测生成字段的映射。你甚至可以通过字段名称或数据类型来应用不同的映射。
+
+每个模板都有一个名称， 你可以用来描述这个模板的用途， 一个 mapping来指定映射应该怎样使用，以及至少一个参数 (如 match) 来定义这个模板适用于哪个字段。
+
+模板按照顺序来检测；第一个匹配的模板会被启用。例如，我们给text类型字段定义两个模板：
+es ：以 _es 结尾的字段名需要使用spanish分词器。
+en ：所有其他字段使用english分词器。
+
+我们将es模板放在第一位，因为它比匹配所有字符串字段的en模板更特殊：
+PUT /my_index/my_type/_mapping
+{
+    "my_type":{
+        "dynamic_templates":[
+            {
+                "es":{
+                    "match":"*_es",
+                    "match_mapping_type":"string",
+                    "mapping":{
+                        "type":"text",
+                        "analyzer":"spanish"
+                    }
+                }
+            },
+            {
+                "en":{
+                    "match":"*",
+                    "match_mapping_type":"string",
+                    "mapping":{
+                        "type":"text",
+                        "analyzer":"english"
+                    }
+                }
+            }
+        ]
+    }
+}
+匹配字段名以 _es 结尾的字段。
+匹配其他所有字符串类型字段。
+
+match_mapping_type 允许你应用模板到特定类型的字段上，就像有标准动态映射规则检测的一样， (例如 string 或 long)。
+
+match参数只匹配字段名称， path_match参数匹配字段在对象上的完整路径，所以 address.*.name 将匹配这样的字段：
+{
+    "address": {
+        "city": {
+            "name": "New York"
+        }
+    }
+}
+unmatch和path_unmatch将被用于未被匹配的字段。

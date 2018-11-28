@@ -1,0 +1,44 @@
+如 person 、 product 或 address （人、产品或地址）这样的实体中，需要使用多个字段来唯一标识它的信息。 person 实体可能是这样索引的：
+{
+    "firstname":  "Peter",
+    "lastname":   "Smith"
+}
+或地址：
+{
+    "street":   "5 Poland Street",
+    "city":     "London",
+    "country":  "United Kingdom",
+    "postcode": "W1V 3DG"
+}
+在 多字符串查询 中，我们为每个字段使用不同的字符串，在本例中，我们想使用 单个 字符串在多个字段中进行搜索。
+
+简单的方式
+依次查询每个字段并将每个字段的匹配评分结果相加，听起来真像是 bool 查询：
+	{
+	  "query": {
+	    "bool": {
+	      "should": [
+	        { "match": { "street":    "Poland Street W1V" }},
+	        { "match": { "city":      "Poland Street W1V" }},
+	        { "match": { "country":   "Poland Street W1V" }},
+	        { "match": { "postcode":  "Poland Street W1V" }}
+	      ]
+	    }
+	  }
+	}
+
+也可以采用 multi_match 查询， 将 type 设置成 most_fields 然后告诉 Elasticsearch 合并所有匹配字段的评分：
+	{
+	  "query": {
+	    "multi_match": {
+	      "query":       "Poland Street W1V",
+	      "type":        "most_fields",
+	      "fields":      [ "street", "city", "country", "postcode" ]
+	    }
+	  }
+	}
+
+用 most_fields 这种方式搜索也存在某些问题，这些问题并不会马上显现：
+	1、它是为多数字段匹配 任意 词设计的，而不是在 所有字段 中找到最匹配的。
+	2、它不能使用 operator 或 minimum_should_match 参数来降低次相关结果造成的长尾效应。
+	3、词频对于每个字段是不一样的，而且它们之间的相互影响会导致不好的排序结果。

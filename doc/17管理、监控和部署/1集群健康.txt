@@ -1,0 +1,56 @@
+GET _cluster/health：
+	{
+	   "cluster_name": "elasticsearch_zach",
+	   "status": "green",
+	   "timed_out": false,
+	   "number_of_nodes": 1,
+	   "number_of_data_nodes": 1,
+	   "active_primary_shards": 10,
+	   "active_shards": 10,
+	   "relocating_shards": 0,
+	   "initializing_shards": 0,
+	   "unassigned_shards": 0
+	}
+响应信息中最重要的一块就是 status 字段。状态可能是下列三个值之一：
+green
+	所有的主分片和副本分片都已分配。你的集群是 100% 可用的。
+yellow
+	所有的主分片已经分片了，但至少还有一个副本是缺失的。不会有数据丢失，所以搜索结果依然是完整的。不过，你的高可用性在某种程度上被弱化。如果更多的分
+	片消失，你就会丢数据了。把 yellow 想象成一个需要及时调查的警告。
+red
+	至少一个主分片（以及它的全部副本）都在缺失中。这意味着你在缺少数据：搜索只能返回部分数据，而分配到这个分片上的写入请求会返回一个异常。
+
+number_of_nodes 和 number_of_data_nodes 这个命名完全是自描述的。
+active_primary_shards 指出你集群中的主分片数量。这是涵盖了所有索引的汇总值。
+active_shards 是涵盖了所有索引的_所有_分片的汇总值，即包括副本分片。
+relocating_shards 显示当前正在从一个节点迁往其他节点的分片的数量。通常来说应该是 0，不过在Elasticsearch发现集群不太均衡时，该值会上涨。比如说：
+添加了一个新节点，或者下线了一个节点。
+initializing_shards 是刚刚创建的分片的个数。比如，当你刚创建第一个索引，分片都会短暂的处于initializing状态。这通常会是一个临时事件，分片不应该
+长期停留在initializing状态。你还可能在节点刚重启的时候看到initializing分片：当分片从磁盘上加载后，它们会从initializing状态开始。
+unassigned_shards 是已经在集群状态中存在的分片，但是实际在集群里又找不着。通常未分配分片的来源是未分配的副本。比如，一个有5分片和1副本的索引，在
+单节点集群上，就会有5个未分配副本分片。如果你的集群是red状态，也会长期保有未分配分片（因为缺少主分片）。
+
+想象一下某天碰到问题了， 而你发现你的集群健康状态看起来像是这样：
+{
+   "cluster_name": "elasticsearch_zach",
+   "status": "red",
+   "timed_out": false,
+   "number_of_nodes": 8,
+   "number_of_data_nodes": 8,
+   "active_primary_shards": 90,
+   "active_shards": 180,
+   "relocating_shards": 0,
+   "initializing_shards": 0,
+   "unassigned_shards": 20
+}
+这时使用：
+GET _cluster/health?level=indices
+这个参数会让 cluster-health API 在我们的集群信息里添加一个索引清单，以及有关每个索引的细节（状态、分片数、未分配分片数等等）：
+GET _cluster/health?level=shards
+shards 选项会提供一个详细得多的输出，列出每个索引里每个分片的状态和位置。这个输出有时候很有用，但是由于太过详细会比较难用。如果你知道哪个索引有问题
+了，本章讨论的其他 API 显得更加有用一点。
+
+当构建单元和集成测试时，或者实现和 Elasticsearch 相关的自动化脚本时，cluster-health API 还有另一个小技巧非常有用。你可以指定一个
+wait_for_status参数，它只有在状态达标之后才会返回。比如：
+GET _cluster/health?wait_for_status=green
+这个调用会阻塞 （不给你的程序返回控制权）住直到cluster-health变成green，也就是说所有主分片和副本分片都分配下去了。这对自动化脚本和测试非常重要。

@@ -1,0 +1,108 @@
+Elasticsearch支持以下简单字段类型：
+类型				表示的数据类型
+String			text/keyword（分词/不分词）
+Whole number	byte, short, integer, long
+Floating point	float, double
+Boolean			boolean
+Date			date
+
+当你索引一个包含新字段的文档——一个之前没有的字段——Elasticsearch将使用动态映射猜测字段类型，这类型来自于JSON的基本数据类型，使用以下规则：
+JSON type							Field type
+Boolean: true or false				"boolean"
+Whole number: 123					"long"
+Floating point: 123.45				"double"
+String, valid date: "2014-09-15"	"date"
+String: "foo bar"					"text"
+
+这意味着，如果你索引一个带引号的数字——"123"，它将被映射为"string"类型，而不是"long"类型。然而，如果字段已经被映射为"long"类型，
+Elasticsearch将尝试转换字符串为long，并在转换失败时会抛出异常。
+
+我们可以使用_mapping后缀来查看Elasticsearch中的映射。在本章开始我们已经找到索引gb类型tweet中的映射：
+GET /product/_mapping/book
+这展示给了我们字段的映射（叫做属性(properties)），这些映射是Elasticsearch在创建索引时动态生成的：
+{
+  "mappings": {
+    "book" : {
+      "properties" : {
+        "content" : {
+          "type" :    "text",
+          "index":    "true",
+          "analyzer": "ik_smart"
+        },
+        "date" : {
+          "type" :   "date"
+        },
+        "author" : {
+          "type" :   "keyword",
+          "index":    "true"
+        },
+        "isbn" : {
+          "type" :   "long"
+        }
+      }
+    }
+  }
+}
+
+对于string字段，两个最重要的映射参数是index和analyer。
+index：
+index参数控制字符串以何种方式被索引。它包含以下两个值当中的一个：
+值				解释
+true			索引此字段。
+false			不索引此字段。
+string类型字段默认值是analyzed。如果我们想映射字段为确切值，我们需要设置它为keyword：
+{
+    "tag": {
+        "type":     "keyword",
+        "index":    "true"
+    }
+}
+其他简单类型（long、double、date等等）也接受index参数，但相应的值只能是false，它们的值不能被分析。
+
+对于analyzed类型的字符串字段，使用analyzer参数来指定哪一种分析器将在搜索和索引的时候使用。默认的，Elasticsearch使用standard分析器，
+但是你可以通过指定一个内建的分析器来更改它，例如whitespace、simple或english。
+
+再后来，我们决定在product的映射中增加一个新的keyword类型的文本字段，叫做tag，使用_mapping后缀:
+PUT /product/_mapping/book
+{
+  "properties" : {
+    "tag" : {
+      "type" :    "keyword",
+      "index":    "true"
+    }
+  }
+}
+测试：
+post	/product/_analyze（分词）
+{
+	"field":"content",
+	"text":"我学习计算机技术"
+}
+post	/product/_analyze（不分词）
+{
+	"field":"author",
+	"text":"我是作者张三"
+}
+
+PUT /my_index
+{
+    "settings": { "number_of_shards": 1 },
+    "mappings": {
+        "my_type": {
+            "properties": {
+                "title": {
+                    "type":     "text",
+                    "analyzer": "english",
+                    "fields": {
+                        "std":   {
+                            "type":     "text",
+                            "analyzer": "standard"
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+title 字段使用 english 英语分析器来提取词干。
+title.std 字段使用 standard 标准分析器，所以没有词干提取。

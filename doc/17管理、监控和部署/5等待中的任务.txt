@@ -1,0 +1,39 @@
+有一些任务只能由主节点去处理，比如创建一个新的 索引或者在集群中移动分片。由于一个集群中只能有一个主节点，所以只有这一节点可以处理集群级别的元数据变动。
+在 99.9999% 的时间里，这不会有什么问题。元数据变动的队列基本上保持为零。
+
+等待中的任务 API 会给你展示队列中（如果有的话）等待的集群级别的元数据变更操作：
+	GET _cluster/pending_tasks
+通常，响应都是像这样的：
+	{
+	   "tasks": []
+	}
+
+{
+   "tasks": [
+      {
+         "insert_order": 101,
+         "priority": "URGENT",
+         "source": "create-index [foo_9], cause [api]",
+         "time_in_queue_millis": 86,
+         "time_in_queue": "86ms"
+      },
+      {
+         "insert_order": 46,
+         "priority": "HIGH",
+         "source": "shard-started ([foo_2][1], node[tMTocMvQQgGCkj7QDHl3OA], [P],
+         s[INITIALIZING]), reason [after recovery from gateway]",
+         "time_in_queue_millis": 842,
+         "time_in_queue": "842ms"
+      },
+      {
+         "insert_order": 45,
+         "priority": "HIGH",
+         "source": "shard-started ([foo_2][0], node[tMTocMvQQgGCkj7QDHl3OA], [P],
+         s[INITIALIZING]), reason [after recovery from gateway]",
+         "time_in_queue_millis": 858,
+         "time_in_queue": "858ms"
+      }
+  ]
+}
+可以看到任务都被指派了优先级（ 比如说 URGENT 要比 HIGH 更早的处理 ），任务插入的次序、操作进入队列多久，以及打算处理什么。在上面的列表中，有一个 创建
+索引(create-index) 和两个 启动分片(shard-started) 的操作在等待。

@@ -1,0 +1,34 @@
+fielddata 大小是在数据加载 之后 检查的。 如果一个查询试图加载比可用内存更多的信息到 fielddata 中会发生什么？答案很丑陋：我们会碰到
+OutOfMemoryException 。
+Elasticsearch 包括一个 fielddata 断熔器 ，这个设计就是为了处理上述情况。 断熔器通过内部检查（字段的类型、基数、大小等等）来估算一
+个查询需要的内存。它然后检查要求加载的 fielddata 是否会导致 fielddata 的总量超过堆的配置比例。
+如果估算查询的大小超出限制，就会 触发 断路器，查询会被中止并返回异常。这都发生在数据加载 之前 ，也就意味着不会引起
+OutOfMemoryException。
+
+Elasticsearch 有一系列的断路器，它们都能保证内存不会超出限制：
+	indices.breaker.fielddata.limit
+	fielddata 断路器默认设置堆的 60% 作为 fielddata 大小的上限。
+	indices.breaker.request.limit
+	request 断路器估算需要完成其他请求部分的结构大小，例如创建一个聚合桶，默认限制是堆内存的 40%。
+	indices.breaker.total.limit
+	total 揉合 request 和 fielddata 断路器保证两者组合起来不会使用超过堆内存的 70%。
+
+断路器的限制可以在文件 config/elasticsearch.yml 中指定，可以动态更新一个正在运行的集群：
+	PUT /_cluster/settings
+	{
+	  "persistent" : {
+	    "indices.breaker.fielddata.limit" : "40%"	这个限制是按对内存的百分比设置的。
+	  }
+	}
+
+最好为断路器设置一个相对保守点的值。 记住 fielddata 需要与 request 断路器共享堆内存、索引缓冲内存和过滤器缓存。Lucene 的数据被用来
+构造索引，以及各种其他临时的数据结构。 正因如此，它默认值非常保守，只有 60% 。过于乐观的设置可能会引起潜在的堆栈溢出（OOM）异常，这会
+使整个节点宕掉。
+另一方面，过度保守的值只会返回查询异常，应用程序可以对异常做相应处理。异常比服务器崩溃要好。这些异常应该也能促进我们对查询进行重新评
+估：为什么单个查询需要超过堆内存的 60% 之多？
+
+
+在 Fielddata的大小 中，我们提过关于给 fielddata 的大小加一个限制，从而确保旧的无用 fielddata被回收的方法。
+indices.fielddata.cache.size 和 indices.breaker.fielddata.limit之间的关系非常重要。 如果断路器的限制低于缓存大小，没有数
+ 据会被回收。为了能正常工作，断路器的限制 必须 要比缓存大小要高。
+值得注意的是：断路器是根据总堆内存大小估算查询大小的，而 非 根据实际堆内存的使用情况。

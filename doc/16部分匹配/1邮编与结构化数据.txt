@@ -1,0 +1,25 @@
+准备数据：
+PUT /my_index
+{
+    "mappings": {
+        "address": {
+            "properties": {
+                "postcode": {
+                    "type":  "string",
+                    "index": "not_analyzed"
+                }
+            }
+        }
+    }
+}
+然后索引一些邮编：
+PUT /my_index/address/1
+{ "postcode": "W1V 3DG" }
+PUT /my_index/address/2
+{ "postcode": "W2F 8HW" }
+PUT /my_index/address/3
+{ "postcode": "W1F 7HW" }
+PUT /my_index/address/4
+{ "postcode": "WC1N 1LZ" }
+PUT /my_index/address/5
+{ "postcode": "SW5 0BE" }

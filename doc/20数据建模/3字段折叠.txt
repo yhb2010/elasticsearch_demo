@@ -1,0 +1,111 @@
+字段折叠：一个普遍的需求是需要通过特定字段进行分组。 例如我们需要按照用户名称 分组 返回最相关的博客文章。按照用户名分组意味着进行 terms 聚合。 为能够
+按照用户 整体 名称进行分组，名称字段应保持 not_analyzed 的形式
+	PUT /my_index/_mapping/blogpost
+	{
+	  "properties": {
+	    "user": {
+	      "properties": {
+	        "name": {
+	          "type": "string",
+	          "fields": {
+	            "raw": {
+	              "type":  "string",
+	              "index": "not_analyzed"
+	            }
+	          }
+	        }
+	      }
+	    }
+	  }
+	}
+
+然后添加一些数据:
+	PUT /my_index/blogpost/1
+	{
+	  "title": "Relationships",
+	  "body": "It's complicated...",
+	  "user": {
+	    "id": 1,
+	    "name": "John Smith"
+	  }
+	}
+	PUT /my_index/blogpost/2
+	{
+	  "title": "Relationships are cool",
+	  "body": "It's not complicated at all...",
+	  "user": {
+	    "id": 3,
+	    "name": "Alice John"
+	  }
+	}
+
+现在我们来查询标题包含 relationships 并且作者名包含 John 的博客，查询结果再按作者名分组：
+	GET /my_index/blogpost/_search
+	{
+	  "size" : 0, 															1
+	  "query": { 															2
+	    "bool": {
+	      "must": [
+	        { "match": { "title":     "relationships" }},
+	        { "match": { "user.name": "John"          }}
+	      ]
+	    }
+	  },
+	  "aggs": {
+	    "users": {
+	      "terms": {
+	        "field":   "user.name.raw",										3
+	        "order": { "top_score": "desc" }								4
+	      },
+	      "aggs": {
+	        "top_score": { "max":      { "script":  "_score"           }},	5
+	        "blogposts": { "top_hits": { "_source": "title", "size": 5 }}	6
+	      }
+	    }
+	  }
+	}
+	1、我们感兴趣的博客文章是通过 blogposts 聚合返回的，所以我们可以通过将 size 设置成 0 来禁止 hits 常规搜索。
+	2、query 返回通过 relationships 查找名称为 John 的用户的博客文章。
+	3、terms 聚合为每一个 user.name.raw 创建一个桶。
+	45、top_score 聚合对通过 users 聚合得到的每一个桶按照文档评分对词项进行排序。
+	6、top_hits 聚合仅为每个用户返回五个最相关的博客文章的 title 字段。
+
+这里显示简短响应结果：
+	...
+	"hits": {
+	  "total":     2,
+	  "max_score": 0,
+	  "hits":      []												1
+	},
+	"aggregations": {
+	  "users": {
+	     "buckets": [
+	        {
+	           "key":       "John Smith",							2
+	           "doc_count": 1,
+	           "blogposts": {
+	              "hits": {											3
+	                 "total":     1,
+	                 "max_score": 0.35258877,
+	                 "hits": [
+	                    {
+	                       "_index": "my_index",
+	                       "_type":  "blogpost",
+	                       "_id":    "2",
+	                       "_score": 0.35258877,
+	                       "_source": {
+	                          "title": "Relationships"
+	                       }
+	                    }
+	                 ]
+	              }
+	           },
+	           "top_score": {										4
+	              "value": 0.3525887727737427
+	           }
+	        },
+	...
+	1、因为我们设置 size 为 0 ，所以 hits 数组是空的。
+	2、在顶层查询结果中出现的每一个用户都会有一个对应的桶。
+	3、在每个用户桶下面都会有一个 blogposts.hits 数组包含针对这个用户的顶层查询结果。
+	4、用户桶按照每个用户最相关的博客文章进行排序。

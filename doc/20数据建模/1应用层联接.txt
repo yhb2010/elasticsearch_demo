@@ -1,0 +1,36 @@
+在关系世界中，我们会这样来操作：
+	PUT /my_index/user/1
+	{
+	  "name":     "John Smith",
+	  "email":    "john@smith.com",
+	  "dob":      "1970/10/24"
+	}
+	PUT /my_index/blogpost/2
+	{
+	  "title":    "Relationships",
+	  "body":     "It's complicated...",
+	  "user":     1
+	}
+为了找到用户叫做 John 的博客帖子，我们需要运行两次查询： 第一次会查找所有叫做 John 的用户从而获取他们的 ID 集合，接着第二次会将这些 ID 集合放到类似
+于前面一个例子的查询：
+	GET /my_index/user/_search
+	{
+	  "query": {
+	    "match": {
+	      "name": "John"
+	    }
+	  }
+	}
+	GET /my_index/blogpost/_search
+	{
+	  "query": {
+	    "constant_score": {
+	      "filter": {
+	        "terms": { "user": [1] }
+	      }
+	    }
+	  }
+	}
+应用层联接的主要优点是可以对数据进行标准化处理。只能在 user 文档中修改用户的名称。缺点是，为了在搜索时联接文档，必须运行额外的查询。
+这种方法适用于第一个实体（例如，在这个例子中 user ）只有少量的文档记录的情况，并且最好它们很少改变。这将允许应用程序对结果进行缓存，并避免经常运行第
+一次查询。

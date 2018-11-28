@@ -1,0 +1,69 @@
+1、don't run elasticsearch as root.
+因为安全问题elasticsearch 不让用root用户直接运行，所以要创建新用户
+第一步：liunx创建新用户  adduser XXX    然后给创建的用户加密码 passwd XXX    输入两次密码。
+第二步：切换刚才创建的用户 su XXX  然后执行elasticsearch  会显示Permission denied 权限不足。
+第三步：给新建的XXX赋权限，chmod 777 *  这个不行，因为这个用户本身就没有权限，肯定自己不能给自己付权限。所以要用root用户登录付权限。
+第四步：root给XXX赋权限，chown -R XXX /你的elasticsearch安装目录。
+然后执行成功。
+
+2、启动报错：
+max virtual memory areas vm.max_map_count [65530] likely too low, increase to at least [262144]
+解决：
+切换到root用户
+执行命令：
+sysctl -w vm.max_map_count=262144
+查看结果：
+sysctl -a|grep vm.max_map_count
+显示：
+vm.max_map_count = 262144
+上述方法修改之后，如果重启虚拟机将失效，所以：
+解决办法：
+在 /etc/sysctl.conf文件最后添加一行
+vm.max_map_count=262144
+即可永久修改
+
+3、启动报错：
+max file descriptors [4096] for elasticsearch process is too low, increase to at least [65536]
+解决方法：
+vim /etc/security/limits.conf
+追加内容：
+es hard nofile 65536
+es soft nofile 65536
+其中es是Elasticsearch专门的用户
+执行 sysctl -p 退出es用户重新登录，再次启动应用即可
+
+4、内存锁定报错
+#我选择锁住swapping因此需要在这个配置文件下再增加两行代码
+es soft memlock unlimited
+es hard memlock unlimited
+
+5
+查看日志报以下错误：
+[java] view plain copy
+[2018-02-15T21:15:06,352][INFO ][rest.suppressed          ] /_cat/health Params: {h=node.total}
+MasterNotDiscoveredException[waited for [30s]]
+        at org.elasticsearch.action.support.master.TransportMasterNodeAction$4.onTimeout(TransportMasterNodeAction.java:160)
+        at org.elasticsearch.cluster.ClusterStateObserver$ObserverClusterStateListener.onTimeout(ClusterStateObserver.java:239)
+        at org.elasticsearch.cluster.service.InternalClusterService$NotifyTimeout.run(InternalClusterService.java:630)
+        at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1142)
+        at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:617)
+        at java.lang.Thread.run(Thread.java:745)
+原因：将discovery.zen.minimum_master_nodes的值设置为了3,总共3个节点,都充当主节点是不行的,将discovery.zen.minimum_master_nodes将这个配置改为2。
+
+6、进行聚合操作时提示Fielddata is disabled on text fields by default
+搜了一下应该是5.x后对排序，聚合这些操作用单独的数据结构(fielddata)缓存到内存里了，需要单独开启，官方解释在此fielddata
+简单来说就是在聚合前执行如下操作
+PUT megacorp/_mapping/employee/
+{
+  "properties": {
+    "interests": {
+      "type":     "text",
+      "fielddata": true
+    }
+  }
+}
+
+7、No handler for type [string] declared on field[XXX]解决办法
+Elasticsearch从5.X就引入了text和keyword，其中keyword适用于不分词字段，搜索时只能完全匹配，这时string还保留着。
+到了6.X就彻底移除string了。
+另外，"index"的值只能是boolean变量了。

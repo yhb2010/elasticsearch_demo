@@ -1,0 +1,31 @@
+在一定条件下，我们也有可能对 更深 的度量进行排序，比如孙子桶或从孙桶。
+我们可以定义更深的路径，将度量用尖括号（ > ）嵌套起来，像这样： my_bucket>another_bucket>metric 。
+需要提醒的是嵌套路径上的每个桶都必须是 单值 的。 filter 桶生成 一个单值桶：所有与过滤条件匹配的文档都在桶中。 多值桶（如：terms ）动态
+生成许多桶，无法通过指定一个确定路径来识别。
+目前，只有三个单值桶： filter 、 global 和 reverse_nested 。让我们快速用示例说明，创建一个汽车售价的直方图，但是按照红色和绿色（不
+包括蓝色）车各自的方差来排序：
+	GET /cars/transactions/_search
+	{
+	    "size" : 0,
+	    "aggs" : {
+	        "colors" : {
+	            "histogram" : {
+	              "field" : "price",
+	              "interval": 20000,
+	              "order": {
+	                "red_green_cars>stats.variance" : "asc" 按照嵌套度量的方差对桶的直方图进行排序。
+	              }
+	            },
+	            "aggs": {
+	                "red_green_cars": {
+	                	因为我们使用单值过滤器 filter ，我们可以使用嵌套排序。
+	                    "filter": { "terms": {"color": ["red", "green"]}},
+	                    "aggs": {
+	                    	按照生成的度量对统计结果进行排序。
+	                        "stats": {"extended_stats": {"field" : "price"}}
+	                    }
+	                }
+	            }
+	        }
+	    }
+	}

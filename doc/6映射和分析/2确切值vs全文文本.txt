@@ -1,0 +1,86 @@
+确切值:
+确切值确切值是确定的，正如它的名字一样。比如一个date或用户ID，也可以包含更多的字符串比如username或email地址。
+确切值"Foo"和"foo"就并不相同。确切值2014和2014-09-15也不相同。
+
+全文数据：
+我们不会去询问这篇文档是否匹配查询要求？。 但是，我们会询问这篇文档和查询的匹配程度如何？。换句话说，对于查询条件，这篇文档的相关性有多高？
+使用倒排索引。
+
+倒排索引：
+Elasticsearch使用一种叫做倒排索引(inverted index)的结构来做快速的全文搜索。倒排索引由在文档中出现的唯一的单词列表，以及对于每个单词在
+文档中的位置组成。
+例如，我们有两个文档，每个文档content字段包含：
+The quick brown fox jumped over the lazy dog
+Quick brown foxes leap over lazy dogs in summer
+为了创建倒排索引，我们首先切分每个文档的content字段为单独的单词（我们把它们叫做词(terms)或者表征(tokens)）（译者注：关于terms和tokens的翻译比较生硬，只需知道语句分词后的个体叫做这两个。），把所有的唯一词放入列表并排序，结果是这个样子的：
+Term	Doc_1	Doc_2
+Quick			X
+The	X
+brown	X		X
+dog		X
+dogs			X
+fox	X
+foxes			X
+in		X
+jumped	X
+lazy	X		X
+leap			X
+over	X		X
+quick	X
+summer			X
+the		X
+
+但是在我们的倒排索引中还有些问题：
+"Quick"和"quick"被认为是不同的单词，但是用户可能认为它们是相同的。
+"fox"和"foxes"很相似，就像"dog"和"dogs"——它们都是同根词。
+"jumped"和"leap"不是同根词，但意思相似——它们是同义词。
+
+如果我们将词为统一为标准格式，这样就可以找到不是确切匹配查询，但是足以相似从而可以关联的文档。例如：
+"Quick"可以转为小写成为"quick"。
+"foxes"可以被转为根形式"fox"。同理"dogs"可以被转为"dog"。
+"jumped"和"leap"同义就可以只索引为单个词"jump"
+现在的索引：
+Term	Doc_1	Doc_2
+brown	X		X
+dog	X	X
+fox	X	X
+in		X
+jump	X		X
+lazy	X		X
+over	X		X
+quick	X		X
+summer			X
+the	X	X
+
+当你查询全文(full text)字段，查询将使用相同的分析器来分析查询字符串，以产生正确的词列表。
+当你查询一个确切值(exact value)字段，查询将不分析查询字符串，但是你可以自己指定。
+
+查看分词结果：
+	post	http://127.0.0.103:9200/_analyze
+	{
+		"analyzer" : "ik_smart",
+		"text" : "我是大英雄"
+	}
+
+查看索引里某个字段的分析器的分析结果：
+	GET /my_store/_analyze
+	{
+	  "field": "productID",
+	  "text": "XHDK-A-1293-#fJ3"
+	}
+
+要改变现有字段使用的分析器，只能先删除，再重新建立：
+	DELETE /my_store
+	PUT /my_store
+	{
+	    "mappings" : {
+	        "products" : {
+	            "properties" : {
+	                "productID" : {
+	                    "type" : "string",
+	                    "index" : "not_analyzed"
+	                }
+	            }
+	        }
+	    }
+	}

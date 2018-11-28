@@ -1,0 +1,90 @@
+在上一节一开头我们就说 Doc Values 是 "快速、高效并且内存友好" 。
+Doc Values 是在索引时与 倒排索引 同时生成。也就是说 Doc Values 和 倒排索引 一样，基于 Segement 生成并且是不可变的。同时Doc Values
+和 倒排索引 一样序列化到磁盘，这样对性能和扩展性有很大帮助。
+Doc Values 默认对所有字段启用，除了 analyzed strings`。也就是说所有的数字、地理坐标、日期、IP 和不分析（ `not_analyzed ）字符类
+型都会默认开启。
+
+PUT my_index
+{
+  "mappings": {
+    "my_type": {
+      "properties": {
+        "session_id": {
+          "type":       "string",
+          "index":      "not_analyzed",
+          "doc_values": false 可以关闭，也可以设置true开启
+        }
+      }
+    }
+  }
+}
+
+对keyword字段聚合：
+DELETE /agg_analysis/
+PUT /agg_analysis
+{
+  "mappings": {
+    "data": {
+      "properties": {
+        "state" : {
+          "type": "text",
+          "fields": {
+            "raw" : {
+              "type": "keyword",
+              "index": "true"
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+POST /agg_analysis/data/_bulk
+{ "state" : "New York" }
+{ "state" : "New Jersey" }
+{ "state" : "New Mexico" }
+{ "state" : "New York" }
+{ "state" : "New York" }
+
+GET /agg_analysis/data/_search
+{
+  "size" : 0,
+  "aggs" : {
+    "states" : {
+        "terms" : {
+            "field" : "state.raw"
+        }
+    }
+  }
+}
+
+结果：
+{
+...
+   "aggregations": {
+      "states": {
+         "buckets": [
+            {
+               "key": "New York",
+               "doc_count": 3
+            },
+            {
+               "key": "New Jersey",
+               "doc_count": 1
+            },
+            {
+               "key": "New Mexico",
+               "doc_count": 1
+            }
+         ]
+      }
+   }
+}
+
+分析字符串和 Fielddata（Analyzed strings and Fielddata）编辑：
+Doc values不支持analyzed字符串字段，因为它们不能很有效的表示多值字符串。Doc values最有效的是，当每个文档都有一个或几个tokens
+时， 但不是无数的，分析字符串（想象一个 PDF ，可能有几兆字节并有数以千计的独特 tokens）。
+出于这个原因，doc values不生成分析的字符串，然而，这些字段仍然可以使用聚合，那怎么可能呢？
+答案是一种被称为fielddata的数据结构。与 doc values不同，fielddata构建和管理100%在内存中，常驻于JVM内存堆。这意味着它本质上是不
+可扩展的，有很多边缘情况下要提防。 本章的其余部分是解决在分析字符串上下文中fielddata的挑战。

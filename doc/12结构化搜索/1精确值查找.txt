@@ -1,0 +1,46 @@
+当进行精确值查找时， 我们会使用过滤器（filters）。
+term查询， 可以用它处理数字（numbers）、布尔值（Booleans）、日期（dates）以及文本（text）
+
+包含，而不是相等：
+	一定要了解 term 和 terms 是 包含（contains） 操作，而非 等值（equals） （判断）。 如何理解这句话呢？
+	如果我们有一个 term（词项）过滤器 { "term" : { "tags" : "search" } } ，它会与以下两个文档 同时 匹配：
+		{ "tags" : ["search"] }
+		{ "tags" : ["search", "open_source"] }
+	尽管第二个文档包含除 search 以外的其他词，它还是被匹配并作为结果返回。
+	在我们的例子中，倒排索引表如下：
+	Token			DocIDs
+	open_source		2
+	search			1,2
+	当 term 查询匹配标记search时，它直接在倒排索引中找到记录并获取相关的文档ID，如倒排索引所示，这里文档1和文档2均包含该标记，所以两个文档会同时作
+	为结果返回。
+
+通常当查找一个精确值的时候，我们不希望对查询进行评分计算。只希望对文档进行包括或排除的计算，所以我们会使用 constant_score 查询以非评分模式来执行
+term查询并以一作为统一评分。
+	GET /my_store/products/_search
+	{
+	    "query" : {
+	        "constant_score" : {
+	            "filter" : {
+	                "term" : {
+	                    "price" : 20
+	                }
+	            }
+	        }
+	    }
+	}
+
+	GET /my_store/products/_search
+	{
+	    "query" : {
+	        "constant_score" : {
+	            "filter" : {
+	                "term" : {
+	                    "productID" : "XHDK-A-1293-#fJ3"
+	                }
+	            }
+	        }
+	    }
+	}
+
+理论上非评分查询 先于 评分查询执行。非评分查询任务旨在降低那些将对评分查询计算带来更高成本的文档数量，从而达到快速搜索的目的。
+从概念上记住非评分计算是首先执行的，这将有助于写出高效又快速的搜索请求。
