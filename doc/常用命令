@@ -57,3 +57,73 @@ PUT qz/external/2?pretty' -d
 	}
 查看索引结构：
 	get	/fs/_mapping/file
+
+创建一个名为indexname且包含3个分片、1个副本的索引：
+curl -xput localhost:9200/indexname?pretty
+	{
+		"settings":{
+			"number_of_shards":3,
+			"number_of_replicas":1
+		}
+	}
+
+删除索引：
+curl -xdelete localhost:9200/indexname
+
+删除多个索引：
+curl xdelete localhost:9200/indexname1, indexname2
+curl xdelete localhost:9200/indexname*
+
+删除某个集群下的全部索引：
+curl xdelete localhost:9200/_all
+curl xdelete localhost:9200/*
+进行全部索引删除是危险的，我们可以通过下面的配置来关闭使用_all和使用通配符删除索引的接口，使删除索引只能通过索引的全称进行。
+action.destructive_requires_name:true
+
+通过下面的接口获取索引的信息，其中pretty参数用于格式化输出结果，以便更容易阅读：
+curl -xpost localhost:9200/indexname?pretty
+
+通过下面的接口关闭、打开索引：
+curl -xpost localhost:9200/indexname/_close
+curl -xpost localhost:9200/indexname/_open
+
+通过下面的接口获取一个索引中具体type的mapping映射：
+curl -xget localhost:9200/indexname/typename/_mapping?pretty
+当一个索引中有多个type时，获得mapping时要加上typename
+
+通过下面的接口获取索引中一个字段的信息
+curl -xget localhost:9200/indexname/_mapping/field/fieldname
+
+通过下面的接口为索引添加别名：
+curl -xput localhost:9200/indexname/_alias/aliasname?pretty
+
+对索引别名进行批量操作
+curl -xpost localhost:9200/_aliases?pretty
+	{
+		"actions":[
+			{"remove":{"index":"indexname", "alias":"aliasname"}},
+			{"add":{"index":"indexname", "alias":"newalias"}}
+		]
+	}
+
+获取索引的settings：
+	curl -xget localhost:9200/indexname/_settings?pretty
+
+通过下面的接口进行分析(分析某个字段是如何建立索引的)：
+curl -xget localhost:9200/indexname/_analyze?pretty
+	{
+		"field":"fieldname",
+		"text":"使用fieldname分词的数据"
+	}
+	该接口返回的是对字符串"使用fieldname分词的数据"使用fieldname的分词方式的分词结果
+
+清除索引上的缓存：
+curl -xpost localhost:9200/indexname/_cache/clear?pretty
+
+刷新索引：
+curl -xpost localhost:9200/indexname/_flush?pretty
+curl -xpost localhost:9200/indexname/_refresh?pretty
+
+对索引进行优化：
+curl -xpost localhost:9200/indexname/_forcemerge?pretty
+在es5之后的版本中使用_forcemerge替换_optimize
