@@ -1,0 +1,20 @@
+curl -xget localhost:9200/_cat获取所有的_cat命令。
+在上述接口中可以添加的参数如下。
+
+参数v：让输出的信息显示表头信息
+curl -xget localhost:9200/_cat/master?v
+id                     host            ip              node
+1bH28KuPQ_aOCQf7UPppGg 192.168.170.103 192.168.170.103 node-2
+
+参数help：输出该命令可以显示的列
+curl -xget localhost:9200/_cat/master?help
+id   |   | node id
+host | h | host name
+ip   |   | ip address
+node | n | node name
+上述结果中，第1列表示_cat/master命令可以返回的字段名称，第2列是简称，第3列是字段的描述。
+
+参数h：可以指定返回的字段：
+curl -xget localhost:9200/_cat/master?v&h=host,ip,node
+host            ip              node
+192.168.170.103 192.168.170.103 node-2

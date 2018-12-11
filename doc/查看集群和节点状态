@@ -1,0 +1,5 @@
+查看集群健康状态的接口：
+curl -xget localhost:9200/_cluster/health?pretty
+curl -xget localhost:9200/_cluster/health?level=indices&pretty
+curl -xget localhost:9200/_cluster/health?level=shards&pretty
+接口1是集群的状态；接口2不仅包含集群的状态，还包含索引级的状态；接口3是更细粒度的分片级的状态。
