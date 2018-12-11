@@ -32,4 +32,12 @@ network.host:192.168.0.1：用于同时设置bind_host和publish_host
 http.port:9200：设置对外服务的http端口，默认9200。ES的节点需要配置两个端口号，一个是对外提供服务的端口号，一个是集群内部通信使用的端口号。如果在一个
 集群上设置了多个节点，需要对端口号进行区分
 
-transport.tcp.port:9300：设置集群内部的节点间
+transport.tcp.port:9300：设置集群内部的节点间交互的tcp端口，默认是9300。注意，如果在一个服务器上配置多个节点，切记对端口号进行分区。
+
+transport.tcp.compress:true：设置在节点间传输数据时是否压缩，默认是false，不压缩
+
+discovery.zen.minimum_master_nodes:1：设置在选举master节点时需要参与的最少的候选节点数，默认为1.如果使用默认值，则当网络不稳定时有可能会出现脑裂。
+合理的数值为(master_eligible_nodes/2)+1，其中master_eligible_nodes表示集群中的候选主节点数。
+
+discovery.zen.ping.timeout:3s：设置在集群中自动发现其他节点时ping连接的超时时间，默认为3s。在较差的网络环境下需要设置得大一点，防止因误判该节点的存
+活状态而导致分片的转移。
