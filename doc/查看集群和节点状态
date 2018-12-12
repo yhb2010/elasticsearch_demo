@@ -3,3 +3,26 @@ curl -xget localhost:9200/_cluster/health?pretty
 curl -xget localhost:9200/_cluster/health?level=indices&pretty
 curl -xget localhost:9200/_cluster/health?level=shards&pretty
 接口1是集群的状态；接口2不仅包含集群的状态，还包含索引级的状态；接口3是更细粒度的分片级的状态。
+
+查看集群状况的接口：
+curl -xget localhost:9200/_cluster/state?pretty
+
+查看集群统计信息的命令：
+curl -xget localhost:9200/_cluster/stats?pretty
+在返回的结果中包含了在集群中包含的索引个数、节点信息、分片信息、内存信息、cpu信息、缓存信息等
+
+查看一个索引的统计信息的命令
+curl -xget localhost:9200/indexname/stats?pretty
+返回一个索引的各项统计信息，包含：索引的大小、数据条数、查询次数、查询耗时、分片数、merger数、刷新次数(flush和refresh)、查询缓存的大小等跟索引相关的统
+计信息。
+
+查看集群挂起的任务接口，并返回集群中待执行的任务：
+curl -xget localhost:9200/_cluster/pending_tasks?pretty
+
+查看节点信息的接口：
+curl -xget localhost:9200/_nodes?pretty
+返回集群中各个节点的详细信息，例如：集群名称、节点名称、节点所在服务器的操作系统、jvm、用到的ES模块等节点信息。
+
+查看节点统计信息的接口：
+curl -xget localhost:9200/_nodes/stats?pretty
+返回集群中各个节点的统计信息，例如查询次数、写索引次数、merge次数及耗时、索引大小、分片数等统计信息。
